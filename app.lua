@@ -42,9 +42,8 @@ function Camera:update(dt, cursor_block, window_width, window_height)
 end
 
 local PinKind = {
-    PIN = 1,
-    EXPRESSION = 2,
-    STATEMENT = 3,
+    EXPRESSION = 1,
+    STATEMENT = 2,
 }
 
 local Block = {
@@ -77,12 +76,25 @@ local Block = {
 
     PIN = {
         TEXT = "?",
-        PIN_KIND = PinKind.PIN,
+        PIN_KIND = nil,
         PINS = {},
+    },
+    EXPANDER = {
+        TEXT = "+",
+        PIN_KIND = nil,
+        PINS = {},
+    },
+    DO = {
+        TEXT = "do",
+        PIN_KIND = PinKind.STATEMENT,
+        HAS_EXPANDER = true,
+        PINS = {
+            PinKind.STATEMENT,
+        },
     },
     ASSIGNMENT = {
         TEXT = "=",
-        KIND = PinKind.STATEMENT,
+        PIN_KIND = PinKind.STATEMENT,
         PINS = {
             PinKind.EXPRESSION,
             PinKind.EXPRESSION,
@@ -110,14 +122,16 @@ local PIN_BLOCKS = {
     },
     [PinKind.STATEMENT] = {
         Block.ASSIGNMENT,
-    },
-    [PinKind.PIN] = {
-        Block.PIN,
+        Block.DO,
     },
 }
 
 local function set_color(color)
     lyte.set_color(color.R, color.G, color.B, 1)
+end
+
+local function is_key_pressed_or_repeat(key)
+    return lyte.is_key_pressed(key) or lyte.is_key_repeat(key)
 end
 
 local default_font = lyte.load_font("Roboto-Regular.ttf", 36)
@@ -126,6 +140,7 @@ lyte.set_font(default_font)
 function Block:new(kind, parent)
     local block = {
         text = kind.TEXT,
+        pin_kind = kind.PIN_KIND,
         kind = kind,
         parent = parent,
         children = {},
@@ -137,8 +152,15 @@ function Block:new(kind, parent)
         height = 0,
     }
 
-    for i, _ in ipairs(block.kind.PINS) do
-        block.children[i] = Block:new(Block.PIN, block)
+    for i, pin_kind in ipairs(kind.PINS) do
+        local block_kind = Block.PIN
+
+        if kind.HAS_EXPANDER and i == #kind.PINS then
+            block_kind = Block.EXPANDER
+        end
+
+        block.children[i] = Block:new(block_kind, block)
+        block.children[i].pin_kind = pin_kind
     end
 
     setmetatable(block, self)
@@ -214,11 +236,12 @@ end
 
 local camera = Camera:new()
 
-local root_block = Block:new(Block.ASSIGNMENT, nil)
-local block_2 = Block:new(Block.ADD, root_block)
-root_block.children[2] = block_2
-local block_2_2 = Block:new(Block.ADD, block_2)
-block_2.children[2] = block_2_2
+-- local root_block = Block:new(Block.ASSIGNMENT, nil)
+-- local block_2 = Block:new(Block.ADD, root_block)
+-- root_block.children[2] = block_2
+-- local block_2_2 = Block:new(Block.ADD, block_2)
+-- block_2.children[2] = block_2_2
+local root_block = Block:new(Block.DO, nil)
 
 root_block:update_tree(0, 0)
 
@@ -285,7 +308,7 @@ local function try_fill_pin(search_text, do_insert)
         end
     end
 
-    local block_kind_choices = PIN_BLOCKS[cursor_block.parent.kind.PINS[cursor_i]]
+    local block_kind_choices = PIN_BLOCKS[cursor_block.pin_kind]
 
     local chosen_block_kind = nil
     if do_insert then
@@ -315,16 +338,39 @@ local function try_fill_pin(search_text, do_insert)
 end
 
 local function try_delete()
+    if cursor_block.parent == nil or cursor_block.kind == Block.EXPANDER then
+        return
+    end
+
+    local cursor_i = 1
+    for i, child in ipairs(cursor_block.parent.children) do
+        if child == cursor_block then
+            cursor_i = i
+        end
+    end
+
+    if cursor_block.kind == Block.PIN and cursor_block.parent.kind.HAS_EXPANDER and cursor_i >= #cursor_block.parent.kind.PINS then
+        cursor_block = cursor_block.parent.children[cursor_i + 1]
+        table.remove(cursor_block.parent.children, cursor_i)
+    else
+        cursor_block.parent.children[cursor_i] = Block:new(Block.PIN, cursor_block.parent)
+        cursor_block = cursor_block.parent.children[cursor_i]
+    end
+
+    root_block:update_tree(root_block.x, root_block.y)
+end
+
+local function try_expand()
     if cursor_block.parent == nil then
         return
     end
 
-    for i, child in ipairs(cursor_block.parent.children) do
-        if child == cursor_block then
-            cursor_block.parent.children[i] = Block:new(Block.PIN, cursor_block.parent)
-            cursor_block = cursor_block.parent.children[i]
-        end
-    end
+    print(cursor_block.pin_kind)
+
+    local children = cursor_block.parent.children
+    local pin = Block:new(Block.PIN, cursor_block.parent)
+    pin.pin_kind = cursor_block.pin_kind
+    table.insert(children, #children, pin)
 
     root_block:update_tree(root_block.x, root_block.y)
 end
@@ -340,30 +386,40 @@ local search_text = ""
 local insert_text = ""
 
 local function update_cursor()
-    if lyte.is_key_pressed("up") then
+    if is_key_pressed_or_repeat("up") then
         if not try_move_cursor_up() then
             try_move_cursor_left()
         end
-    elseif lyte.is_key_pressed("down") then
+    elseif is_key_pressed_or_repeat("down") then
         if not try_move_cursor_down() then
             try_move_cursor_right()
         end
-    elseif lyte.is_key_pressed("left") then
+    elseif is_key_pressed_or_repeat("left") then
         if not try_move_cursor_left() then
             try_move_cursor_up()
         end
-    elseif lyte.is_key_pressed("right") then
+    elseif is_key_pressed_or_repeat("right") then
         if not try_move_cursor_right() then
             try_move_cursor_down()
         end
     end
 
     if lyte.is_key_pressed("space") then
+        if cursor_block.kind == Block.EXPANDER then
+            try_expand()
+            try_move_cursor_left()
+        end
+
         interaction_state = InteractionState.SEARCH
         return
     end
 
     if lyte.is_key_pressed("enter") then
+        if cursor_block.kind == Block.EXPANDER then
+            try_expand()
+            try_move_cursor_left()
+        end
+
         interaction_state = InteractionState.INSERT
         return
     end
@@ -376,7 +432,7 @@ end
 local function update_text_input(text, do_insert)
     text = text .. lyte.get_textinput()
 
-    if lyte.is_key_pressed("backspace") or lyte.is_key_repeat("backspace") then
+    if is_key_pressed_or_repeat("backspace") then
         text = text:sub(1, #text - 1)
     end
 
