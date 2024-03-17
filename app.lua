@@ -312,6 +312,10 @@ local function try_fill_pin(search_text, do_insert)
 
     local chosen_block_kind = nil
     if do_insert then
+        if cursor_block.pin_kind ~= PinKind.EXPRESSION then
+            return false
+        end
+
         chosen_block_kind = Block.TEXT
     else
         for _, block_kind in ipairs(block_kind_choices) do
@@ -353,8 +357,10 @@ local function try_delete()
         cursor_block = cursor_block.parent.children[cursor_i + 1]
         table.remove(cursor_block.parent.children, cursor_i)
     else
-        cursor_block.parent.children[cursor_i] = Block:new(Block.PIN, cursor_block.parent)
-        cursor_block = cursor_block.parent.children[cursor_i]
+        local new_pin = Block:new(Block.PIN, cursor_block.parent)
+        new_pin.pin_kind = cursor_block.pin_kind
+        cursor_block.parent.children[cursor_i] = new_pin
+        cursor_block = new_pin
     end
 
     root_block:update_tree(root_block.x, root_block.y)
@@ -364,8 +370,6 @@ local function try_expand()
     if cursor_block.parent == nil then
         return
     end
-
-    print(cursor_block.pin_kind)
 
     local children = cursor_block.parent.children
     local pin = Block:new(Block.PIN, cursor_block.parent)
