@@ -4,6 +4,7 @@ TODO:
 - Make text insertion only allow valid characters,
 - Make text insertion use space instead of underscores, which will be converted to underscores
   behind the scenes for final Lua code.
+- Have two types of pins, pins that must be filled (highlighted red) "!" and pins that are optional "?".
 
 ]]--
 
@@ -86,9 +87,20 @@ local Block = {
     },
     DO = {
         TEXT = "do",
+        IS_VERTICAL = true,
         PIN_KIND = PinKind.STATEMENT,
         HAS_EXPANDER = true,
         PINS = {
+            PinKind.STATEMENT,
+        },
+    },
+    IF = {
+        TEXT = "if",
+        IS_VERTICAL = true,
+        PIN_KIND = PinKind.STATEMENT,
+        PINS = {
+            PinKind.EXPRESSION,
+            PinKind.STATEMENT,
             PinKind.STATEMENT,
         },
     },
@@ -123,6 +135,7 @@ local PIN_BLOCKS = {
     [PinKind.STATEMENT] = {
         Block.ASSIGNMENT,
         Block.DO,
+        Block.IF,
     },
 }
 
@@ -134,7 +147,7 @@ local function is_key_pressed_or_repeat(key)
     return lyte.is_key_pressed(key) or lyte.is_key_repeat(key)
 end
 
-local default_font = lyte.load_font("Roboto-Regular.ttf", 36)
+local default_font = lyte.load_font("Roboto-Regular.ttf", 25)
 lyte.set_font(default_font)
 
 function Block:new(kind, parent)
@@ -181,11 +194,15 @@ function Block:update_tree(x, y)
     local child_y = y + Block.PADDING
 
     for _, child in ipairs(self.children) do
-        child_x = child_x + Block.PADDING
-
-        child:update_tree(child_x, child_y)
-
-        child_x = child_x + child.width
+        if self.kind.IS_VERTICAL then
+            child_y = child_y + Block.PADDING
+            child:update_tree(child_x + Block.PADDING, child_y)
+            child_y = child_y + child.height
+        else
+            child_x = child_x + Block.PADDING
+            child:update_tree(child_x, child_y)
+            child_x = child_x + child.width
+        end
     end
 
     self:update_bounds(x, y)
@@ -199,8 +216,13 @@ function Block:update_bounds(x, y)
     self.height = self.text_height
 
     for _, child in ipairs(self.children) do
-        self.width = self.width + Block.PADDING + child.width
-        self.height = math.max(self.height, child.height)
+        if self.kind.IS_VERTICAL then
+            self.height = self.height + Block.PADDING + child.height
+            self.width = math.max(self.width, self.text_width + child.width + Block.PADDING)
+        else
+            self.width = self.width + Block.PADDING + child.width
+            self.height = math.max(self.height, child.height)
+        end
     end
 
     self.width = self.width + Block.PADDING * 2
@@ -213,7 +235,7 @@ function Block:draw(cursor_block, depth)
         lyte.draw_rect(self.x - Block.PADDING * 1.5, self.y - Block.PADDING * 1.5, self.width + Block.PADDING, self.height + Block.PADDING)
     end
 
-    if self.kind == Block.PIN then
+    if self.kind == Block.PIN or self.kind == Block.EXPANDER then
         set_color(Block.PIN_COLOR)
     else
         if depth % 2 == 0 then
@@ -247,7 +269,7 @@ root_block:update_tree(0, 0)
 
 local cursor_block = root_block
 
-local function try_move_cursor_up()
+local function try_move_cursor_up_local()
     if cursor_block.parent then
         cursor_block = cursor_block.parent
         return true
@@ -256,7 +278,7 @@ local function try_move_cursor_up()
     return false
 end
 
-local function try_move_cursor_down()
+local function try_move_cursor_down_local()
     if cursor_block.children[1] then
         cursor_block = cursor_block.children[1]
         return true
@@ -265,7 +287,7 @@ local function try_move_cursor_down()
     return false
 end
 
-local function try_move_cursor_left()
+local function try_move_cursor_left_local()
     if cursor_block.parent then
         for i, child in ipairs(cursor_block.parent.children) do
             if child == cursor_block and i > 1 then
@@ -278,7 +300,7 @@ local function try_move_cursor_left()
     return false
 end
 
-local function try_move_cursor_right()
+local function try_move_cursor_right_local()
     if cursor_block.parent then
         for i, child in ipairs(cursor_block.parent.children) do
             if child == cursor_block and i < #cursor_block.parent.children then
@@ -289,6 +311,38 @@ local function try_move_cursor_right()
     end
 
     return false
+end
+
+local function try_move_cursor_up()
+    if cursor_block.parent and cursor_block.parent.kind.IS_VERTICAL then
+        return try_move_cursor_left_local()
+    end
+
+    return try_move_cursor_up_local()
+end
+
+local function try_move_cursor_down()
+    if cursor_block.parent and cursor_block.parent.kind.IS_VERTICAL then
+        return try_move_cursor_right_local()
+    end
+
+    return try_move_cursor_down_local()
+end
+
+local function try_move_cursor_left()
+    if cursor_block.parent and cursor_block.parent.kind.IS_VERTICAL then
+        return try_move_cursor_up_local()
+    end
+
+    return try_move_cursor_left_local()
+end
+
+local function try_move_cursor_right()
+    if cursor_block.parent and cursor_block.parent.kind.IS_VERTICAL then
+        return try_move_cursor_down_local()
+    end
+
+    return try_move_cursor_right_local()
 end
 
 local function try_fill_pin(search_text, do_insert)
@@ -411,7 +465,7 @@ local function update_cursor()
     if lyte.is_key_pressed("space") then
         if cursor_block.kind == Block.EXPANDER then
             try_expand()
-            try_move_cursor_left()
+            try_move_cursor_left_local()
         end
 
         interaction_state = InteractionState.SEARCH
@@ -421,7 +475,7 @@ local function update_cursor()
     if lyte.is_key_pressed("enter") then
         if cursor_block.kind == Block.EXPANDER then
             try_expand()
-            try_move_cursor_left()
+            try_move_cursor_left_local()
         end
 
         interaction_state = InteractionState.INSERT
