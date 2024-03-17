@@ -188,7 +188,10 @@ end
 function Block:draw(cursor_block, depth)
     if self == cursor_block then
         set_color(Block.CURSOR_COLOR)
-    elseif self.kind == Block.PIN then
+        lyte.draw_rect(self.x - Block.PADDING * 1.5, self.y - Block.PADDING * 1.5, self.width + Block.PADDING, self.height + Block.PADDING)
+    end
+
+    if self.kind == Block.PIN then
         set_color(Block.PIN_COLOR)
     else
         if depth % 2 == 0 then
