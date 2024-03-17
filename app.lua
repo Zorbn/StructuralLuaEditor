@@ -444,19 +444,19 @@ local search_text = ""
 local insert_text = ""
 
 local function update_cursor()
-    if is_key_pressed_or_repeat("up") then
+    if is_key_pressed_or_repeat("up") or is_key_pressed_or_repeat("e") or is_key_pressed_or_repeat("i") then
         if not try_move_cursor_up() then
             try_move_cursor_left()
         end
-    elseif is_key_pressed_or_repeat("down") then
+    elseif is_key_pressed_or_repeat("down") or is_key_pressed_or_repeat("d") or is_key_pressed_or_repeat("k") then
         if not try_move_cursor_down() then
             try_move_cursor_right()
         end
-    elseif is_key_pressed_or_repeat("left") then
+    elseif is_key_pressed_or_repeat("left") or is_key_pressed_or_repeat("s") or is_key_pressed_or_repeat("j") then
         if not try_move_cursor_left() then
             try_move_cursor_up()
         end
-    elseif is_key_pressed_or_repeat("right") then
+    elseif is_key_pressed_or_repeat("right") or is_key_pressed_or_repeat("f") or is_key_pressed_or_repeat("l") then
         if not try_move_cursor_right() then
             try_move_cursor_down()
         end
@@ -482,7 +482,7 @@ local function update_cursor()
         return
     end
 
-    if lyte.is_key_pressed("backspace") then
+    if is_key_pressed_or_repeat("backspace") then
         try_delete()
     end
 end
