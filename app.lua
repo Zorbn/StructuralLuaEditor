@@ -105,7 +105,7 @@ end
 local PinKind = {
     EXPRESSION = 1,
     STATEMENT = 2,
-    TEXT = 3,
+    IDENTIFIER = 3,
 }
 
 local function new_block_group(group)
@@ -180,14 +180,14 @@ local Block = {
             new_block_group({
                 TEXT = "fn",
                 PINS = {
-                    PinKind.TEXT,
+                    PinKind.IDENTIFIER,
                 },
             }),
             new_block_group({
                 TEXT = "",
                 HAS_EXPANDER = true,
                 PINS = {
-                    PinKind.TEXT,
+                    PinKind.IDENTIFIER,
                 },
             }),
             new_block_group({
@@ -240,8 +240,8 @@ local Block = {
             }),
         }
     },
-    TEXT = {
-        PIN_KIND = PinKind.TEXT,
+    IDENTIFIER = {
+        PIN_KIND = PinKind.IDENTIFIER,
         GROUPS = {
             new_block_group({
                 TEXT = "",
@@ -254,7 +254,6 @@ local Block = {
 local PIN_BLOCKS = {
     [PinKind.EXPRESSION] = {
         Block.ADD,
-        Block.TEXT,
     },
     [PinKind.STATEMENT] = {
         Block.ASSIGNMENT,
@@ -262,8 +261,8 @@ local PIN_BLOCKS = {
         Block.FUNCTION,
         Block.IF,
     },
-    [PinKind.TEXT] = {
-        Block.TEXT,
+    [PinKind.IDENTIFIER] = {
+        Block.IDENTIFIER,
     },
 }
 
@@ -315,7 +314,7 @@ function Block:update_tree(x, y)
     x = x + Block.PADDING
     y = y + Block.PADDING
 
-    if self.kind == Block.TEXT then
+    if self.kind == Block.IDENTIFIER then
         x = x + self.text_width
         y = y + self.text_height
     else
@@ -383,7 +382,7 @@ function Block:draw(cursor_block, depth)
 
     -- TODO: Fix this to work for multiple groups.
     local text
-    if self.kind == Block.TEXT then
+    if self.kind == Block.IDENTIFIER then
         text = self.text
     else
         text = self.kind.GROUPS[1].TEXT
@@ -488,7 +487,7 @@ local BLOCK_SAVE_FUNCTIONS = {
     [Block.IF] = Block.save_if,
     [Block.ASSIGNMENT] = Block.save_assignment,
     [Block.ADD] = Block.save_add,
-    [Block.TEXT] = Block.save_text,
+    [Block.IDENTIFIER] = Block.save_text,
 }
 
 function Block:save(data)
@@ -629,11 +628,11 @@ local function try_fill_pin(search_text, do_insert)
 
     local chosen_block_kind = nil
     if do_insert then
-        if cursor_block.pin_kind ~= PinKind.TEXT and cursor_block.pin_kind ~= PinKind.EXPRESSION then
+        if cursor_block.pin_kind ~= PinKind.IDENTIFIER and cursor_block.pin_kind ~= PinKind.EXPRESSION then
             return false
         end
 
-        chosen_block_kind = Block.TEXT
+        chosen_block_kind = Block.IDENTIFIER
     else
         for _, block_kind in ipairs(block_kind_choices) do
             if block_kind.GROUPS[1].TEXT == search_text then
