@@ -70,7 +70,7 @@ end
 
 function Writer:write(string)
     if self.is_after_newline then
-        for _ = 0, self.indent_count do
+        for _ = 1, self.indent_count do
             table.insert(self.buffer, "    ")
         end
 
