@@ -740,7 +740,8 @@ local function try_delete()
         table.remove(cursor_block.parent.child_groups[cursor_group_i], cursor_i)
     else
         local new_pin = Block:new(Block.PIN, cursor_block.parent)
-        new_pin.pin_kind = cursor_block.parent.kind.GROUPS[cursor_group_i].PINS[cursor_i]
+        local last_pin_i = math.min(cursor_i, #cursor_block.parent.kind.GROUPS[cursor_group_i].PINS)
+        new_pin.pin_kind = cursor_block.parent.kind.GROUPS[cursor_group_i].PINS[last_pin_i]
         cursor_block.parent.child_groups[cursor_group_i][cursor_i] = new_pin
         cursor_block = new_pin
     end
