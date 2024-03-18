@@ -42,6 +42,66 @@ function Camera:update(dt, cursor_block, window_width, window_height)
     end
 end
 
+local function set_color(color)
+    lyte.set_color(color.R, color.G, color.B, 1)
+end
+
+local function is_key_pressed_or_repeat(key)
+    return lyte.is_key_pressed(key) or lyte.is_key_repeat(key)
+end
+
+local default_font = lyte.load_font("Roboto-Regular.ttf", 25)
+lyte.set_font(default_font)
+
+local Writer = {}
+
+function Writer:new()
+    local writer = {
+        buffer = {},
+        is_after_newline = true,
+        indent_count = 0,
+    }
+
+    setmetatable(writer, self)
+    self.__index = self
+
+    return writer
+end
+
+function Writer:write(string)
+    if self.is_after_newline then
+        for _ = 0, self.indent_count do
+            table.insert(self.buffer, "    ")
+        end
+
+        self.is_after_newline = false
+    end
+
+    table.insert(self.buffer, string)
+end
+
+function Writer:writeln(string)
+    self:write(string)
+    self:newline()
+end
+
+function Writer:newline()
+    table.insert(self.buffer, "\n")
+    self.is_after_newline = true
+end
+
+function Writer:indent()
+    self.indent_count = self.indent_count + 1
+end
+
+function Writer:unindent()
+    self.indent_count = self.indent_count - 1
+end
+
+function Writer:to_string()
+    return table.concat(self.buffer)
+end
+
 local PinKind = {
     EXPRESSION = 1,
     STATEMENT = 2,
@@ -207,17 +267,6 @@ local PIN_BLOCKS = {
     },
 }
 
-local function set_color(color)
-    lyte.set_color(color.R, color.G, color.B, 1)
-end
-
-local function is_key_pressed_or_repeat(key)
-    return lyte.is_key_pressed(key) or lyte.is_key_repeat(key)
-end
-
-local default_font = lyte.load_font("Roboto-Regular.ttf", 25)
-lyte.set_font(default_font)
-
 function Block:new(kind, parent)
     local block = {
         text = "",
@@ -314,7 +363,8 @@ end
 function Block:draw(cursor_block, depth)
     if self == cursor_block then
         set_color(Block.CURSOR_COLOR)
-        lyte.draw_rect(self.x - Block.PADDING * 1.5, self.y - Block.PADDING * 1.5, self.width + Block.PADDING, self.height + Block.PADDING)
+        lyte.draw_rect(self.x - Block.PADDING * 1.5, self.y - Block.PADDING * 1.5, self.width + Block.PADDING,
+            self.height + Block.PADDING)
     end
 
     if self.kind == Block.PIN or self.kind == Block.EXPANDER then
@@ -345,6 +395,104 @@ function Block:draw(cursor_block, depth)
             child:draw(cursor_block, depth + 1)
         end
     end
+end
+
+function Block:save_pin(_)
+end
+
+function Block:save_expander(_)
+end
+
+function Block:save_do(data)
+    data:writeln("do")
+    data:indent()
+
+    for _, child_group in ipairs(self.child_groups) do
+        for _, child in ipairs(child_group) do
+            child:save(data)
+        end
+    end
+
+    data:unindent()
+    data:writeln("end")
+end
+
+function Block:save_function(data)
+    data:write("function ")
+    self.child_groups[1][1]:save(data)
+
+    data:write("(")
+
+    local last_i = #self.child_groups[2] - 1
+    for i, child in ipairs(self.child_groups[2]) do
+        child:save(data)
+
+        if i < last_i then
+            data:write(", ")
+        end
+    end
+
+    data:writeln(")")
+    data:indent()
+
+    for _, child in ipairs(self.child_groups[3]) do
+        child:save(data)
+    end
+
+    data:unindent()
+    data:writeln("end")
+end
+
+function Block:save_if(data)
+    data:write("if ")
+    self.child_groups[1][1]:save(data)
+    data:writeln(" then")
+    self.child_groups[1][2]:save(data)
+
+    if self.child_groups[1][3].kind ~= Block.PIN then
+        data:writeln("else")
+        self.child_groups[1][3]:save(data)
+    end
+
+    data:writeln("end")
+end
+
+function Block:save_assignment(data)
+    self.child_groups[1][1]:save(data)
+    data:write(" = ")
+    self.child_groups[1][2]:save(data)
+    data:newline()
+end
+
+function Block:save_add(data)
+    local last_i = #self.child_groups[1] - 1
+
+    for i, child in ipairs(self.child_groups[1]) do
+        child:save(data)
+
+        if i < last_i then
+            data:write(" + ")
+        end
+    end
+end
+
+function Block:save_text(data)
+    data:write(self.text)
+end
+
+local BLOCK_SAVE_FUNCTIONS = {
+    [Block.PIN] = Block.save_pin,
+    [Block.EXPANDER] = Block.save_expander,
+    [Block.DO] = Block.save_do,
+    [Block.FUNCTION] = Block.save_function,
+    [Block.IF] = Block.save_if,
+    [Block.ASSIGNMENT] = Block.save_assignment,
+    [Block.ADD] = Block.save_add,
+    [Block.TEXT] = Block.save_text,
+}
+
+function Block:save(data)
+    BLOCK_SAVE_FUNCTIONS[self.kind](self, data)
 end
 
 local camera = Camera:new()
@@ -557,6 +705,18 @@ local search_text = ""
 local insert_text = ""
 
 local function update_cursor()
+    if lyte.is_key_down("left_control") then
+        if lyte.is_key_down("s") then
+            local data = Writer:new()
+            root_block:save(data)
+            local data_string = data:to_string()
+
+            lyte.save_textfile("save.lua", data_string)
+        end
+
+        return
+    end
+
     if is_key_pressed_or_repeat("up") or is_key_pressed_or_repeat("e") or is_key_pressed_or_repeat("i") then
         if not try_move_cursor_up() then
             try_move_cursor_left()
