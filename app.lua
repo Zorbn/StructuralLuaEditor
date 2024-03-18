@@ -27,8 +27,8 @@ function Camera:new()
 end
 
 function Camera:update(dt, cursor_block, window_width, window_height)
-    local target_x = cursor_block.x - window_width / 2 + cursor_block.text_width / 2
-    local target_y = cursor_block.y - window_height / 2 + cursor_block.text_height / 2
+    local target_x = cursor_block.x - window_width / 2 + cursor_block.kind.GROUPS[1].TEXT_WIDTH / 2
+    local target_y = cursor_block.y - window_height / 2 + cursor_block.kind.GROUPS[1].TEXT_HEIGHT / 2
 
     self.x = self.x + (target_x - self.x) * Camera.PAN_SPEED * dt
     self.y = self.y + (target_y - self.y) * Camera.PAN_SPEED * dt
@@ -46,6 +46,13 @@ local PinKind = {
     EXPRESSION = 1,
     STATEMENT = 2,
 }
+
+local function new_block_group(group)
+    group.TEXT_WIDTH = lyte.get_text_width(group.TEXT)
+    group.TEXT_HEIGHT = lyte.get_text_height(group.TEXT)
+
+    return group
+end
 
 local Block = {
     EVEN_COLOR = {
@@ -76,54 +83,102 @@ local Block = {
     PADDING = 8,
 
     PIN = {
-        TEXT = "?",
         PIN_KIND = nil,
-        PINS = {},
+        GROUPS = {
+            new_block_group({
+                TEXT = ".",
+                PINS = {},
+            }),
+        },
     },
     EXPANDER = {
-        TEXT = "+",
         PIN_KIND = nil,
-        PINS = {},
+        GROUPS = {
+            new_block_group({
+                TEXT = ";",
+                PINS = {},
+            }),
+        },
     },
     DO = {
-        TEXT = "do",
-        IS_VERTICAL = true,
         PIN_KIND = PinKind.STATEMENT,
-        HAS_EXPANDER = true,
-        PINS = {
-            PinKind.STATEMENT,
+        GROUPS = {
+            new_block_group({
+                TEXT = "do",
+                IS_VERTICAL = true,
+                HAS_EXPANDER = true,
+                PINS = {
+                    PinKind.STATEMENT,
+                },
+            }),
+        },
+    },
+    FUNCTION = {
+        PIN_KIND = PinKind.STATEMENT,
+        GROUPS = {
+            new_block_group({
+                TEXT = "function",
+                HAS_EXPANDER = true,
+                PINS = {
+                    PinKind.STATEMENT,
+                },
+            }),
+            new_block_group({
+                TEXT = "",
+                IS_VERTICAL = true,
+                HAS_EXPANDER = true,
+                PINS = {
+                    PinKind.STATEMENT,
+                },
+            }),
         },
     },
     IF = {
-        TEXT = "if",
-        IS_VERTICAL = true,
         PIN_KIND = PinKind.STATEMENT,
-        PINS = {
-            PinKind.EXPRESSION,
-            PinKind.STATEMENT,
-            PinKind.STATEMENT,
+        GROUPS = {
+            new_block_group({
+                TEXT = "if",
+                IS_VERTICAL = true,
+                PINS = {
+                    PinKind.EXPRESSION,
+                    PinKind.STATEMENT,
+                    PinKind.STATEMENT,
+                },
+            }),
         },
     },
     ASSIGNMENT = {
-        TEXT = "=",
         PIN_KIND = PinKind.STATEMENT,
-        PINS = {
-            PinKind.EXPRESSION,
-            PinKind.EXPRESSION,
+        GROUPS = {
+            new_block_group({
+                TEXT = "=",
+                PINS = {
+                    PinKind.EXPRESSION,
+                    PinKind.EXPRESSION,
+                },
+            }),
         },
     },
     ADD = {
-        TEXT = "+",
         PIN_KIND = PinKind.EXPRESSION,
-        PINS = {
-            PinKind.EXPRESSION,
-            PinKind.EXPRESSION,
-        },
+        GROUPS = {
+            new_block_group({
+                TEXT = "+",
+                PINS = {
+                    PinKind.EXPRESSION,
+                    PinKind.EXPRESSION,
+                },
+            }),
+        }
     },
     TEXT = {
-        TEXT = "",
         PIN_KIND = PinKind.EXPRESSION,
-        PINS = {},
+        GROUPS = {
+            new_block_group({
+                TEXT = "",
+                PINS = {},
+            }),
+        }
     }
 }
 
@@ -135,6 +190,7 @@ local PIN_BLOCKS = {
     [PinKind.STATEMENT] = {
         Block.ASSIGNMENT,
         Block.DO,
+        Block.FUNCTION,
         Block.IF,
     },
 }
@@ -152,34 +208,36 @@ lyte.set_font(default_font)
 
 function Block:new(kind, parent)
     local block = {
-        text = kind.TEXT,
+        text = "",
+        text_width = 0,
+        text_height = 0,
         pin_kind = kind.PIN_KIND,
         kind = kind,
         parent = parent,
-        children = {},
+        child_groups = {},
         x = 0,
         y = 0,
-        text_width = 0,
         width = 0,
-        text_height = 0,
         height = 0,
     }
 
-    for i, pin_kind in ipairs(kind.PINS) do
-        local block_kind = Block.PIN
+    for group_i, group in ipairs(kind.GROUPS) do
+        block.child_groups[group_i] = {}
 
-        if kind.HAS_EXPANDER and i == #kind.PINS then
-            block_kind = Block.EXPANDER
+        for i, pin_kind in ipairs(group.PINS) do
+            local block_kind = Block.PIN
+
+            if group.HAS_EXPANDER and i == #group.PINS then
+                block_kind = Block.EXPANDER
+            end
+
+            block.child_groups[group_i][i] = Block:new(block_kind, block)
+            block.child_groups[group_i][i].pin_kind = pin_kind
         end
-
-        block.children[i] = Block:new(block_kind, block)
-        block.children[i].pin_kind = pin_kind
     end
 
     setmetatable(block, self)
     self.__index = self
-
-    block:update_text_size()
 
     return block
 end
@@ -190,19 +248,29 @@ function Block:update_text_size()
 end
 
 function Block:update_tree(x, y)
-    local child_x = x + self.text_width + Block.PADDING
+    local child_x = x + Block.PADDING + self.kind.GROUPS[1].TEXT_WIDTH
     local child_y = y + Block.PADDING
 
-    for _, child in ipairs(self.children) do
-        if self.kind.IS_VERTICAL then
-            child_y = child_y + Block.PADDING
-            child:update_tree(child_x + Block.PADDING, child_y)
-            child_y = child_y + child.height
-        else
-            child_x = child_x + Block.PADDING
-            child:update_tree(child_x, child_y)
-            child_x = child_x + child.width
+    for group_i, children in ipairs(self.child_groups) do
+        local group_child_x = child_x
+        local group_child_y = child_y
+        local group_height = 0
+
+        for _, child in ipairs(children) do
+            if self.kind.GROUPS[group_i].IS_VERTICAL then
+                group_child_y = group_child_y + Block.PADDING
+                child:update_tree(group_child_x + Block.PADDING, group_child_y)
+                group_child_y = group_child_y + child.height
+                group_height = group_child_y
+            else
+                group_child_x = group_child_x + Block.PADDING
+                child:update_tree(group_child_x, group_child_y)
+                group_child_x = group_child_x + child.width
+                group_height = math.max(group_height, group_child_y - child_y + child.height)
+            end
         end
+
+        child_y = child_y + group_height
     end
 
     self:update_bounds(x, y)
@@ -212,16 +280,30 @@ function Block:update_bounds(x, y)
     self.x = x
     self.y = y
 
-    self.width = self.text_width
-    self.height = self.text_height
+    self.width = 0
+    self.height = 0
 
-    for _, child in ipairs(self.children) do
-        if self.kind.IS_VERTICAL then
-            self.height = self.height + Block.PADDING + child.height
-            self.width = math.max(self.width, self.text_width + child.width + Block.PADDING)
-        else
-            self.width = self.width + Block.PADDING + child.width
-            self.height = math.max(self.height, child.height)
+    for group_i, children in ipairs(self.child_groups) do
+        local text_width = self.kind.GROUPS[group_i].TEXT_WIDTH
+
+        if group_i == 1 and self.kind == Block.TEXT then
+            text_width = self.text_width
+        end
+
+        local text_height = self.kind.GROUPS[group_i].TEXT_HEIGHT
+
+        self.width = self.width + text_width
+        self.height = self.height + text_height
+
+        for _, child in ipairs(children) do
+            if self.kind.GROUPS[group_i].IS_VERTICAL then
+                self.height = self.height + Block.PADDING + child.height
+                self.width = math.max(self.width, text_width + child.width + Block.PADDING)
+                print(self.width)
+            else
+                self.width = self.width + Block.PADDING + child.width
+                self.height = math.max(self.height, child.height)
+            end
         end
     end
 
@@ -249,29 +331,56 @@ function Block:draw(cursor_block, depth)
 
     set_color(Block.TEXT_COLOR)
 
-    lyte.draw_text(self.text, self.x, self.y - Block.PADDING)
+    -- TODO: Fix this to work for multiple groups.
+    local text
+    if self.kind == Block.TEXT then
+        text = self.text
+    else
+        text = self.kind.GROUPS[1].TEXT
+    end
+    lyte.draw_text(text, self.x, self.y - Block.PADDING / 2)
 
-    for _, child in ipairs(self.children) do
-        child:draw(cursor_block, depth + 1)
+    for _, children in ipairs(self.child_groups) do
+        for _, child in ipairs(children) do
+            child:draw(cursor_block, depth + 1)
+        end
     end
 end
 
 local camera = Camera:new()
 
--- local root_block = Block:new(Block.ASSIGNMENT, nil)
--- local block_2 = Block:new(Block.ADD, root_block)
--- root_block.children[2] = block_2
--- local block_2_2 = Block:new(Block.ADD, block_2)
--- block_2.children[2] = block_2_2
 local root_block = Block:new(Block.DO, nil)
-
 root_block:update_tree(0, 0)
 
 local cursor_block = root_block
+local cursor_group_i = 0
+local cursor_i = 0
+
+-- Determine where the cursor block is stored in its parent's list of children.
+local function update_cursor_child_indices()
+    cursor_group_i = 1
+    cursor_i = 1
+
+    if not cursor_block.parent then
+        return
+    end
+
+    for group_i, children in ipairs(cursor_block.parent.child_groups) do
+        for i, child in ipairs(children) do
+            if child == cursor_block then
+                cursor_group_i = group_i
+                cursor_i = i
+
+                return
+            end
+        end
+    end
+end
 
 local function try_move_cursor_up_local()
     if cursor_block.parent then
         cursor_block = cursor_block.parent
+        update_cursor_child_indices()
         return true
     end
 
@@ -279,8 +388,9 @@ local function try_move_cursor_up_local()
 end
 
 local function try_move_cursor_down_local()
-    if cursor_block.children[1] then
-        cursor_block = cursor_block.children[1]
+    if cursor_block.child_groups[1][1] then
+        cursor_block = cursor_block.child_groups[1][1]
+        update_cursor_child_indices()
         return true
     end
 
@@ -289,11 +399,17 @@ end
 
 local function try_move_cursor_left_local()
     if cursor_block.parent then
-        for i, child in ipairs(cursor_block.parent.children) do
-            if child == cursor_block and i > 1 then
-                cursor_block = cursor_block.parent.children[i - 1]
-                return true
-            end
+        if cursor_i > 1 then
+            cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i - 1]
+
+            update_cursor_child_indices()
+            return true
+        elseif cursor_group_i > 1 then
+            local group = cursor_block.parent.child_groups[cursor_group_i - 1]
+            cursor_block = group[#group]
+
+            update_cursor_child_indices()
+            return true
         end
     end
 
@@ -302,11 +418,18 @@ end
 
 local function try_move_cursor_right_local()
     if cursor_block.parent then
-        for i, child in ipairs(cursor_block.parent.children) do
-            if child == cursor_block and i < #cursor_block.parent.children then
-                cursor_block = cursor_block.parent.children[i + 1]
-                return true
-            end
+        local group = cursor_block.parent.child_groups[cursor_group_i]
+
+        if cursor_i < #group then
+            cursor_block = group[cursor_i + 1]
+
+            update_cursor_child_indices()
+            return true
+        elseif cursor_group_i < #cursor_block.parent.child_groups then
+            cursor_block = cursor_block.parent.child_groups[cursor_group_i + 1][1]
+
+            update_cursor_child_indices()
+            return true
         end
     end
 
@@ -314,7 +437,7 @@ local function try_move_cursor_right_local()
 end
 
 local function try_move_cursor_up()
-    if cursor_block.parent and cursor_block.parent.kind.IS_VERTICAL then
+    if cursor_block.parent and cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
         return try_move_cursor_left_local()
     end
 
@@ -322,7 +445,7 @@ local function try_move_cursor_up()
 end
 
 local function try_move_cursor_down()
-    if cursor_block.parent and cursor_block.parent.kind.IS_VERTICAL then
+    if cursor_block.parent and cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
         return try_move_cursor_right_local()
     end
 
@@ -330,7 +453,7 @@ local function try_move_cursor_down()
 end
 
 local function try_move_cursor_left()
-    if cursor_block.parent and cursor_block.parent.kind.IS_VERTICAL then
+    if cursor_block.parent and cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
         return try_move_cursor_up_local()
     end
 
@@ -338,7 +461,7 @@ local function try_move_cursor_left()
 end
 
 local function try_move_cursor_right()
-    if cursor_block.parent and cursor_block.parent.kind.IS_VERTICAL then
+    if cursor_block.parent and cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
         return try_move_cursor_down_local()
     end
 
@@ -354,14 +477,6 @@ local function try_fill_pin(search_text, do_insert)
         return
     end
 
-    local cursor_i = 1
-    for i, child in ipairs(cursor_block.parent.children) do
-        if child == cursor_block then
-            cursor_i = i
-            break
-        end
-    end
-
     local block_kind_choices = PIN_BLOCKS[cursor_block.pin_kind]
 
     local chosen_block_kind = nil
@@ -373,15 +488,15 @@ local function try_fill_pin(search_text, do_insert)
         chosen_block_kind = Block.TEXT
     else
         for _, block_kind in ipairs(block_kind_choices) do
-            if block_kind.TEXT == search_text then
+            if block_kind.GROUPS[1].TEXT == search_text then
                 chosen_block_kind = block_kind
             end
         end
     end
 
     if chosen_block_kind ~= nil then
-        cursor_block.parent.children[cursor_i] = Block:new(chosen_block_kind, cursor_block.parent)
-        cursor_block = cursor_block.parent.children[cursor_i]
+        cursor_block.parent.child_groups[cursor_group_i][cursor_i] = Block:new(chosen_block_kind, cursor_block.parent)
+        cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i]
 
         if do_insert then
             cursor_block.text = search_text
@@ -400,20 +515,16 @@ local function try_delete()
         return
     end
 
-    local cursor_i = 1
-    for i, child in ipairs(cursor_block.parent.children) do
-        if child == cursor_block then
-            cursor_i = i
-        end
-    end
+    if cursor_block.kind == Block.PIN and
+        cursor_block.parent.kind.GROUPS[cursor_group_i].HAS_EXPANDER and
+        cursor_i >= #cursor_block.parent.kind.GROUPS[cursor_group_i].PINS then
 
-    if cursor_block.kind == Block.PIN and cursor_block.parent.kind.HAS_EXPANDER and cursor_i >= #cursor_block.parent.kind.PINS then
-        cursor_block = cursor_block.parent.children[cursor_i + 1]
-        table.remove(cursor_block.parent.children, cursor_i)
+        cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i + 1]
+        table.remove(cursor_block.parent.child_groups[cursor_group_i], cursor_i)
     else
         local new_pin = Block:new(Block.PIN, cursor_block.parent)
         new_pin.pin_kind = cursor_block.pin_kind
-        cursor_block.parent.children[cursor_i] = new_pin
+        cursor_block.parent.child_groups[cursor_group_i][cursor_i] = new_pin
         cursor_block = new_pin
     end
 
@@ -425,12 +536,14 @@ local function try_expand()
         return
     end
 
-    local children = cursor_block.parent.children
+    local children = cursor_block.parent.child_groups[cursor_group_i]
     local pin = Block:new(Block.PIN, cursor_block.parent)
     pin.pin_kind = cursor_block.pin_kind
     table.insert(children, #children, pin)
 
     root_block:update_tree(root_block.x, root_block.y)
+
+    update_cursor_child_indices()
 end
 
 local InteractionState = {
