@@ -263,18 +263,31 @@ function Block:update_tree(x, y)
     local start_x = x
     local max_width = 0
 
-    for _, child_group in ipairs(self.child_groups) do
-        local max_height = 0
+    for group_i, child_group in ipairs(self.child_groups) do
+        if self.kind.GROUPS[group_i].IS_VERTICAL then
+            for _, child in ipairs(child_group) do
+                child:update_tree(x, y)
+                x = x + child.width + Block.PADDING
+                y = y + child.height + Block.PADDING
 
-        for _, child in ipairs(child_group) do
-            child:update_tree(x, y)
-            x = x + child.width + Block.PADDING
-            max_height = math.max(max_height, child.height + Block.PADDING)
+                max_width = math.max(max_width, x - self.x)
+                x = start_x
+            end
+        else
+            local max_height = 0
+
+            for _, child in ipairs(child_group) do
+                child:update_tree(x, y)
+                x = x + child.width + Block.PADDING
+                max_height = math.max(max_height, child.height + Block.PADDING)
+            end
+
+            max_width = math.max(max_width, x - self.x)
+            x = start_x
+            y = y + max_height
         end
 
-        y = y + max_height
-        max_width = math.max(max_width, x - self.x)
-        x = start_x
+        y = y + Block.PADDING
     end
 
     self.width = max_width
