@@ -45,6 +45,7 @@ end
 local PinKind = {
     EXPRESSION = 1,
     STATEMENT = 2,
+    TEXT = 3,
 }
 
 local function new_block_group(group)
@@ -117,10 +118,16 @@ local Block = {
         PIN_KIND = PinKind.STATEMENT,
         GROUPS = {
             new_block_group({
-                TEXT = "function",
+                TEXT = "fn",
+                PINS = {
+                    PinKind.TEXT,
+                },
+            }),
+            new_block_group({
+                TEXT = "",
                 HAS_EXPANDER = true,
                 PINS = {
-                    PinKind.STATEMENT,
+                    PinKind.TEXT,
                 },
             }),
             new_block_group({
@@ -164,7 +171,9 @@ local Block = {
         GROUPS = {
             new_block_group({
                 TEXT = "+",
+                HAS_EXPANDER = true,
                 PINS = {
+                    PinKind.EXPRESSION,
                     PinKind.EXPRESSION,
                     PinKind.EXPRESSION,
                 },
@@ -172,7 +181,7 @@ local Block = {
         }
     },
     TEXT = {
-        PIN_KIND = PinKind.EXPRESSION,
+        PIN_KIND = PinKind.TEXT,
         GROUPS = {
             new_block_group({
                 TEXT = "",
@@ -192,6 +201,9 @@ local PIN_BLOCKS = {
         Block.DO,
         Block.FUNCTION,
         Block.IF,
+    },
+    [PinKind.TEXT] = {
+        Block.TEXT,
     },
 }
 
@@ -254,8 +266,13 @@ function Block:update_tree(x, y)
     x = x + Block.PADDING
     y = y + Block.PADDING
 
-    x = x + self.kind.GROUPS[1].TEXT_WIDTH
-    y = y + self.kind.GROUPS[1].TEXT_HEIGHT
+    if self.kind == Block.TEXT then
+        x = x + self.text_width
+        y = y + self.text_height
+    else
+        x = x + self.kind.GROUPS[1].TEXT_WIDTH
+        y = y + self.kind.GROUPS[1].TEXT_HEIGHT
+    end
 
     x = x + Block.PADDING
     y = y + Block.PADDING
@@ -464,7 +481,7 @@ local function try_fill_pin(search_text, do_insert)
 
     local chosen_block_kind = nil
     if do_insert then
-        if cursor_block.pin_kind ~= PinKind.EXPRESSION then
+        if cursor_block.pin_kind ~= PinKind.TEXT and cursor_block.pin_kind ~= PinKind.EXPRESSION then
             return false
         end
 
