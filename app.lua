@@ -248,67 +248,37 @@ function Block:update_text_size()
 end
 
 function Block:update_tree(x, y)
-    local child_x = x + Block.PADDING + self.kind.GROUPS[1].TEXT_WIDTH
-    local child_y = y + Block.PADDING
-
-    for group_i, children in ipairs(self.child_groups) do
-        local group_child_x = child_x
-        local group_child_y = child_y
-        local group_height = 0
-
-        for _, child in ipairs(children) do
-            if self.kind.GROUPS[group_i].IS_VERTICAL then
-                group_child_y = group_child_y + Block.PADDING
-                child:update_tree(group_child_x + Block.PADDING, group_child_y)
-                group_child_y = group_child_y + child.height
-                group_height = group_child_y
-            else
-                group_child_x = group_child_x + Block.PADDING
-                child:update_tree(group_child_x, group_child_y)
-                group_child_x = group_child_x + child.width
-                group_height = math.max(group_height, group_child_y - child_y + child.height)
-            end
-        end
-
-        child_y = child_y + group_height
-    end
-
-    self:update_bounds(x, y)
-end
-
-function Block:update_bounds(x, y)
     self.x = x
     self.y = y
 
-    self.width = 0
-    self.height = 0
+    x = x + Block.PADDING
+    y = y + Block.PADDING
 
-    for group_i, children in ipairs(self.child_groups) do
-        local text_width = self.kind.GROUPS[group_i].TEXT_WIDTH
+    x = x + self.kind.GROUPS[1].TEXT_WIDTH
+    y = y + self.kind.GROUPS[1].TEXT_HEIGHT
 
-        if group_i == 1 and self.kind == Block.TEXT then
-            text_width = self.text_width
+    x = x + Block.PADDING
+    y = y + Block.PADDING
+
+    local start_x = x
+    local max_width = 0
+
+    for _, child_group in ipairs(self.child_groups) do
+        local max_height = 0
+
+        for _, child in ipairs(child_group) do
+            child:update_tree(x, y)
+            x = x + child.width + Block.PADDING
+            max_height = math.max(max_height, child.height + Block.PADDING)
         end
 
-        local text_height = self.kind.GROUPS[group_i].TEXT_HEIGHT
-
-        self.width = self.width + text_width
-        self.height = self.height + text_height
-
-        for _, child in ipairs(children) do
-            if self.kind.GROUPS[group_i].IS_VERTICAL then
-                self.height = self.height + Block.PADDING + child.height
-                self.width = math.max(self.width, text_width + child.width + Block.PADDING)
-                print(self.width)
-            else
-                self.width = self.width + Block.PADDING + child.width
-                self.height = math.max(self.height, child.height)
-            end
-        end
+        y = y + max_height
+        max_width = math.max(max_width, x - self.x)
+        x = start_x
     end
 
-    self.width = self.width + Block.PADDING * 2
-    self.height = self.height + Block.PADDING * 2
+    self.width = max_width
+    self.height = y - self.y
 end
 
 function Block:draw(cursor_block, depth)
