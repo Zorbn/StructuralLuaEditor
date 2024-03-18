@@ -863,6 +863,12 @@ local function draw_text_input(prefix, text)
     lyte.draw_rect(display_text_width + 10, 5, 5, display_text_height + 5)
 end
 
+local BACKGROUND_COLOR = {
+    R = 221 / 255,
+    G = 221 / 255,
+    B = 221 / 255,
+}
+
 function lyte.tick(dt, window_width, window_height)
     if interaction_state == InteractionState.SEARCH then
         search_text = update_text_input(search_text, false)
@@ -878,6 +884,8 @@ function lyte.tick(dt, window_width, window_height)
 
     lyte.translate(-camera.x, -camera.y)
     lyte.scale(camera.zoom, camera.zoom)
+
+    lyte.cls(BACKGROUND_COLOR.R, BACKGROUND_COLOR.G, BACKGROUND_COLOR.B, 1)
 
     root_block:draw(cursor_block, 0)
 
