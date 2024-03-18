@@ -202,6 +202,26 @@ local Block = {
             }),
         },
     },
+    LAMBDA_FUNCTION = {
+        PIN_KIND = PinKind.EXPRESSION,
+        GROUPS = {
+            new_block_group({
+                TEXT = "fn",
+                HAS_EXPANDER = true,
+                PINS = {
+                    PinKind.IDENTIFIER,
+                },
+            }),
+            new_block_group({
+                TEXT = "",
+                IS_VERTICAL = true,
+                HAS_EXPANDER = true,
+                PINS = {
+                    PinKind.STATEMENT,
+                },
+            }),
+        },
+    },
     IF = {
         PIN_KIND = PinKind.STATEMENT,
         GROUPS = {
@@ -242,6 +262,19 @@ local Block = {
             }),
         }
     },
+    CALL = {
+        PIN_KIND = PinKind.EXPRESSION,
+        GROUPS = {
+            new_block_group({
+                TEXT = "call",
+                HAS_EXPANDER = true,
+                PINS = {
+                    PinKind.EXPRESSION,
+                    PinKind.EXPRESSION,
+                },
+            }),
+        }
+    },
     IDENTIFIER = {
         PIN_KIND = PinKind.IDENTIFIER,
         GROUPS = {
@@ -255,13 +288,16 @@ local Block = {
 
 local PIN_BLOCKS = {
     [PinKind.EXPRESSION] = {
+        Block.LAMBDA_FUNCTION,
         Block.ADD,
+        Block.CALL,
     },
     [PinKind.STATEMENT] = {
         Block.ASSIGNMENT,
         Block.DO,
         Block.FUNCTION,
         Block.IF,
+        Block.CALL,
     },
     [PinKind.IDENTIFIER] = {
         Block.IDENTIFIER,
@@ -418,9 +454,12 @@ function Block:save_do(data)
     data:writeln("end")
 end
 
-function Block:save_function(data)
+function Block:save_function(data, is_lambda)
     data:write("function ")
-    self.child_groups[1][1]:save(data)
+
+    if not is_lambda then
+        self.child_groups[1][1]:save(data)
+    end
 
     data:write("(")
 
@@ -442,6 +481,10 @@ function Block:save_function(data)
 
     data:unindent()
     data:writeln("end")
+end
+
+function Block:save_lambda_function(data)
+    self:save_function(data, true)
 end
 
 function Block:save_if(data)
@@ -477,8 +520,31 @@ function Block:save_add(data)
     end
 end
 
+function Block:save_call(data)
+    self.child_groups[1][1]:save(data)
+
+    data:write("(")
+
+    local last_i = #self.child_groups[1] - 1
+    for i = 2, last_i do
+        self.child_groups[1][i]:save(data)
+
+        if i < last_i then
+            data:write(", ")
+        end
+    end
+
+    data:writeln(")")
+end
+
 function Block:save_identifier(data)
-    data:write(self.text:gsub(" ", "_"))
+    local text = self.text
+
+    if text:sub(1, 1) ~= "\"" then
+        text = self.text:gsub(" ", "_")
+    end
+
+    data:write(text)
 end
 
 local BLOCK_SAVE_FUNCTIONS = {
@@ -486,9 +552,11 @@ local BLOCK_SAVE_FUNCTIONS = {
     [Block.EXPANDER] = Block.save_expander,
     [Block.DO] = Block.save_do,
     [Block.FUNCTION] = Block.save_function,
+    [Block.LAMBDA_FUNCTION] = Block.save_lambda_function,
     [Block.IF] = Block.save_if,
     [Block.ASSIGNMENT] = Block.save_assignment,
     [Block.ADD] = Block.save_add,
+    [Block.CALL] = Block.save_call,
     [Block.IDENTIFIER] = Block.save_identifier,
 }
 
@@ -672,7 +740,7 @@ local function try_delete()
         table.remove(cursor_block.parent.child_groups[cursor_group_i], cursor_i)
     else
         local new_pin = Block:new(Block.PIN, cursor_block.parent)
-        new_pin.pin_kind = cursor_block.pin_kind
+        new_pin.pin_kind = cursor_block.parent.kind.GROUPS[cursor_group_i].PINS[cursor_i]
         cursor_block.parent.child_groups[cursor_group_i][cursor_i] = new_pin
         cursor_block = new_pin
     end
