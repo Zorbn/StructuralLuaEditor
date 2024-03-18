@@ -8,6 +8,8 @@ TODO:
 
 ]]--
 
+local utf8 = require("utf8")
+
 local Camera = {
     ZOOM_STEP = 0.2,
     PAN_SPEED = 10,
@@ -475,8 +477,8 @@ function Block:save_add(data)
     end
 end
 
-function Block:save_text(data)
-    data:write(self.text)
+function Block:save_identifier(data)
+    data:write(self.text:gsub(" ", "_"))
 end
 
 local BLOCK_SAVE_FUNCTIONS = {
@@ -487,7 +489,7 @@ local BLOCK_SAVE_FUNCTIONS = {
     [Block.IF] = Block.save_if,
     [Block.ASSIGNMENT] = Block.save_assignment,
     [Block.ADD] = Block.save_add,
-    [Block.IDENTIFIER] = Block.save_text,
+    [Block.IDENTIFIER] = Block.save_identifier,
 }
 
 function Block:save(data)
