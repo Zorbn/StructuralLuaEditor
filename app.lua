@@ -344,19 +344,29 @@ function Block:update_tree(x, y)
     self.x = x
     self.y = y
 
+    local has_child = self.child_groups[1] and self.child_groups[1][1]
+
     x = x + Block.PADDING
-    y = y + Block.PADDING
+
+    if has_child then
+        y = y + Block.PADDING
+    end
 
     if self.kind == Block.IDENTIFIER then
         x = x + self.text_width
-        y = y + self.text_height
+
+        if not has_child then
+            y = y + self.text_height
+        end
     else
         x = x + self.kind.GROUPS[1].TEXT_WIDTH
-        y = y + self.kind.GROUPS[1].TEXT_HEIGHT
+
+        if not has_child then
+            y = y + self.kind.GROUPS[1].TEXT_HEIGHT
+        end
     end
 
     x = x + Block.PADDING
-    y = y + Block.PADDING
 
     local start_x = x
     local max_width = 0
@@ -385,11 +395,21 @@ function Block:update_tree(x, y)
             y = y + max_height
         end
 
-        y = y + Block.PADDING
+        if group_i < #self.child_groups and #self.child_groups[group_i + 1] > 0 then
+            y = y + Block.PADDING * 2
+        end
     end
 
     self.width = max_width
     self.height = y - self.y
+end
+
+function Block.get_depth_color(depth)
+    if depth % 2 == 0 then
+        return Block.EVEN_COLOR
+    end
+
+    return Block.ODD_COLOR
 end
 
 function Block:draw(cursor_block, depth)
@@ -402,11 +422,7 @@ function Block:draw(cursor_block, depth)
     if self.kind == Block.PIN or self.kind == Block.EXPANDER then
         set_color(Block.PIN_COLOR)
     else
-        if depth % 2 == 0 then
-            set_color(Block.EVEN_COLOR)
-        else
-            set_color(Block.ODD_COLOR)
-        end
+        set_color(Block.get_depth_color(depth))
     end
 
     lyte.draw_rect(self.x - Block.PADDING, self.y - Block.PADDING, self.width, self.height)
@@ -420,11 +436,24 @@ function Block:draw(cursor_block, depth)
     else
         text = self.kind.GROUPS[1].TEXT
     end
-    lyte.draw_text(text, self.x, self.y - Block.PADDING / 2)
 
-    for _, children in ipairs(self.child_groups) do
+    local text_y = self.y - Block.PADDING / 2
+    local has_child = self.child_groups[1] and self.child_groups[1][1]
+
+    if not has_child then
+        text_y = text_y - Block.PADDING
+    end
+
+    lyte.draw_text(text, self.x, text_y)
+
+    for group_i, children in ipairs(self.child_groups) do
         for _, child in ipairs(children) do
             child:draw(cursor_block, depth + 1)
+        end
+
+        if group_i < #self.child_groups and #self.child_groups[group_i + 1] > 0 then
+            set_color(Block.get_depth_color(depth - 1))
+            lyte.draw_rect(self.x, self.child_groups[group_i + 1][1].y - Block.PADDING * 2.75, self.width - Block.PADDING * 2, Block.PADDING / 2)
         end
     end
 end
