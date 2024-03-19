@@ -10,50 +10,35 @@ TODO:
 
 ]]--
 
-local Camera = {
-    ZOOM_STEP = 0.25,
-    PAN_SPEED = 10,
-}
+local DEFAULT_FONT_SIZE = 26
+local code_font
+local default_font = lyte.load_font("Roboto-Regular.ttf", DEFAULT_FONT_SIZE)
 
-function Camera:new()
-    local camera = {
-        x = 0,
-        y = 0,
-        zoom = 1,
-    }
-
-    setmetatable(camera, self)
-    self.__index = self
-
-    return camera
+local function set_default_font(size)
+    code_font = lyte.load_font("Roboto-Regular.ttf", size)
+    lyte.set_font(code_font)
+    collectgarbage("collect")
 end
 
-function Camera:update(dt, cursor_block, window_width, window_height)
-    local target_x = cursor_block.x - window_width / 2 + cursor_block.kind.GROUPS[1].TEXT_WIDTH / 2
-    local target_y = cursor_block.y - window_height / 2 + cursor_block.kind.GROUPS[1].TEXT_HEIGHT / 2
+set_default_font(DEFAULT_FONT_SIZE)
 
-    self.x = self.x + (target_x - self.x) * Camera.PAN_SPEED * dt
-    self.y = self.y + (target_y - self.y) * Camera.PAN_SPEED * dt
+local function draw_text(text, x, y, camera)
+    lyte.set_font(code_font)
 
-    if lyte.is_key_pressed("page_up") then
-        self.zoom = self.zoom + Camera.ZOOM_STEP
-    end
-
-    if lyte.is_key_pressed("page_down") then
-        self.zoom = self.zoom - Camera.ZOOM_STEP
-    end
-end
-
-local function set_color(color)
-    lyte.set_color(color.R, color.G, color.B, 1)
+    lyte.push_matrix()
+    lyte.reset_matrix()
+    lyte.translate(x * camera.zoom - camera.x, y * camera.zoom - camera.y)
+    lyte.draw_text(text, 0, 0)
+    lyte.pop_matrix()
 end
 
 local function is_key_pressed_or_repeat(key)
     return lyte.is_key_pressed(key) or lyte.is_key_repeat(key)
 end
 
-local default_font = lyte.load_font("Roboto-Regular.ttf", 26)
-lyte.set_font(default_font)
+local function set_color(color)
+    lyte.set_color(color.R, color.G, color.B, 1)
+end
 
 local Writer = {}
 
@@ -336,6 +321,7 @@ function Block:new(kind, parent)
 end
 
 function Block:update_text_size()
+    lyte.set_font(default_font)
     self.text_width = lyte.get_text_width(self.text)
     self.text_height = lyte.get_text_height(self.text)
 end
@@ -412,7 +398,7 @@ function Block.get_depth_color(depth)
     return Block.ODD_COLOR
 end
 
-function Block:draw(cursor_block, depth)
+function Block:draw(cursor_block, camera, depth)
     if self == cursor_block then
         set_color(Block.CURSOR_COLOR)
         lyte.draw_rect(self.x - Block.PADDING * 1.5, self.y - Block.PADDING * 1.5, self.width + Block.PADDING,
@@ -444,11 +430,11 @@ function Block:draw(cursor_block, depth)
         text_y = text_y - Block.PADDING
     end
 
-    lyte.draw_text(text, self.x, text_y)
+    draw_text(text, self.x, text_y, camera)
 
     for group_i, children in ipairs(self.child_groups) do
         for _, child in ipairs(children) do
-            child:draw(cursor_block, depth + 1)
+            child:draw(cursor_block, camera, depth + 1)
         end
 
         if group_i < #self.child_groups and #self.child_groups[group_i + 1] > 0 then
@@ -590,6 +576,59 @@ local BLOCK_SAVE_FUNCTIONS = {
 
 function Block:save(data)
     BLOCK_SAVE_FUNCTIONS[self.kind](self, data)
+end
+
+local Camera = {
+    ZOOM_STEP = 0.25,
+    PAN_SPEED = 10,
+}
+
+function Camera:new()
+    local camera = {
+        x = 0,
+        y = 0,
+        zoom = 1,
+    }
+
+    setmetatable(camera, self)
+    self.__index = self
+
+    return camera
+end
+
+function Camera:update(dt, cursor_block, window_width, window_height)
+    local block_text_width, block_text_height
+
+    if cursor_block.kind == Block.IDENTIFIER then
+        block_text_width = cursor_block.text_width
+        block_text_height = cursor_block.text_height
+    else
+        block_text_width = cursor_block.kind.GROUPS[1].TEXT_WIDTH
+        block_text_height = cursor_block.kind.GROUPS[1].TEXT_HEIGHT
+    end
+
+    local target_x = cursor_block.x * self.zoom - window_width / 2 + block_text_width * self.zoom / 2
+    local target_y = cursor_block.y * self.zoom - window_height / 2 + block_text_height * self.zoom / 2
+
+    self.x = self.x + (target_x - self.x) * Camera.PAN_SPEED * dt
+    self.y = self.y + (target_y - self.y) * Camera.PAN_SPEED * dt
+
+    if is_key_pressed_or_repeat("page_up") then
+        self.zoom = self.zoom + Camera.ZOOM_STEP
+
+        set_default_font(DEFAULT_FONT_SIZE * self.zoom)
+    end
+
+    if is_key_pressed_or_repeat("page_down") then
+        self.zoom = self.zoom - Camera.ZOOM_STEP
+        self.zoom = math.max(self.zoom, 0.1)
+
+        set_default_font(DEFAULT_FONT_SIZE * self.zoom)
+    end
+end
+
+function Camera:get_text_height(text)
+    return lyte.get_text_height(text) / self.zoom
 end
 
 local camera = Camera:new()
@@ -883,6 +922,8 @@ local function update_text_input(text, do_insert)
 end
 
 local function draw_text_input(prefix, text)
+    lyte.set_font(default_font)
+
     local display_text = prefix .. text
     local display_text_width = lyte.get_text_width(display_text)
     local display_text_height = lyte.get_text_height(display_text)
@@ -915,7 +956,7 @@ function lyte.tick(dt, window_width, window_height)
 
     lyte.cls(BACKGROUND_COLOR.R, BACKGROUND_COLOR.G, BACKGROUND_COLOR.B, 1)
 
-    root_block:draw(cursor_block, 0)
+    root_block:draw(cursor_block, camera, 0)
 
     lyte.pop_matrix()
 
@@ -926,6 +967,7 @@ function lyte.tick(dt, window_width, window_height)
     elseif interaction_state == InteractionState.INSERT then
         draw_text_input("Insert: ", insert_text)
     else
+        lyte.set_font(default_font)
         lyte.draw_text(camera.zoom * 100 .. "%", 10, 0)
     end
 end
