@@ -5,13 +5,13 @@ TODO:
 - Make text insertion use space instead of underscores, which will be converted to underscores
   behind the scenes for final Lua code.
 - Have two types of pins, pins that must be filled (highlighted red) "!" and pins that are optional "?".
+- Add importing Lua code.
+- Support multiple files.
 
 ]]--
 
-local utf8 = require("utf8")
-
 local Camera = {
-    ZOOM_STEP = 0.2,
+    ZOOM_STEP = 0.25,
     PAN_SPEED = 10,
 }
 
@@ -52,7 +52,7 @@ local function is_key_pressed_or_repeat(key)
     return lyte.is_key_pressed(key) or lyte.is_key_repeat(key)
 end
 
-local default_font = lyte.load_font("Roboto-Regular.ttf", 25)
+local default_font = lyte.load_font("Roboto-Regular.ttf", 26)
 lyte.set_font(default_font)
 
 local Writer = {}
@@ -181,14 +181,9 @@ local Block = {
         GROUPS = {
             new_block_group({
                 TEXT = "fn",
-                PINS = {
-                    PinKind.IDENTIFIER,
-                },
-            }),
-            new_block_group({
-                TEXT = "",
                 HAS_EXPANDER = true,
                 PINS = {
+                    PinKind.IDENTIFIER,
                     PinKind.IDENTIFIER,
                 },
             }),
@@ -463,8 +458,12 @@ function Block:save_function(data, is_lambda)
 
     data:write("(")
 
-    local last_i = #self.child_groups[2] - 1
-    for i, child in ipairs(self.child_groups[2]) do
+    local last_i = #self.child_groups[1] - 1
+    local first_i = is_lambda and 1 or 2
+
+    for i = first_i, #self.child_groups[1] do
+        local child = self.child_groups[1][i]
+
         child:save(data)
 
         if i < last_i then
@@ -475,7 +474,7 @@ function Block:save_function(data, is_lambda)
     data:writeln(")")
     data:indent()
 
-    for _, child in ipairs(self.child_groups[3]) do
+    for _, child in ipairs(self.child_groups[2]) do
         child:save(data)
     end
 
