@@ -1,5 +1,7 @@
 require("block")
 require("graphics")
+require("parser")
+require("lexer")
 
 --[[
 
@@ -132,7 +134,21 @@ end
 
 local camera = Camera:new()
 
-local root_block = Block:new(Block.DO, nil)
+-- local root_block = Block:new(Block.DO, nil)
+local root_block
+
+do
+    local data = lyte.load_textfile("save.lua")
+    if data then
+        local lexer = Lexer:new(data)
+        local parser = Parser:new(lexer)
+        root_block = parser:statement(nil)
+        collectgarbage("collect")
+    else
+        root_block = Block:new(Block.DO, nil)
+    end
+end
+
 root_block:update_tree(0, 0)
 
 local cursor_block = root_block
@@ -320,10 +336,11 @@ local function try_expand()
         return
     end
 
-    local children = cursor_block.parent.child_groups[cursor_group_i]
-    local pin = Block:new(Block.PIN, cursor_block.parent)
-    pin.pin_kind = cursor_block.pin_kind
-    table.insert(children, #children, pin)
+    -- local children = cursor_block.parent.child_groups[cursor_group_i]
+    -- local pin = Block:new(Block.PIN, cursor_block.parent)
+    -- pin.pin_kind = cursor_block.pin_kind
+    -- table.insert(children, #children, pin)
+    cursor_block.parent:expand_group(cursor_group_i)
 
     root_block:update_tree(root_block.x, root_block.y)
 

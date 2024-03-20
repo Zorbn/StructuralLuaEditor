@@ -348,9 +348,20 @@ function Block:draw(cursor_block, camera, depth)
 
         if group_i < #self.child_groups and #self.child_groups[group_i + 1] > 0 then
             Graphics.set_color(Block.get_depth_color(depth - 1))
-            lyte.draw_rect(self.x, self.child_groups[group_i + 1][1].y - Block.PADDING * 2.75, self.width - Block.PADDING * 2, Block.PADDING / 2)
+            lyte.draw_rect(self.x, self.child_groups[group_i + 1][1].y - Block.PADDING * 2.75,
+                self.width - Block.PADDING * 2, Block.PADDING / 2)
         end
     end
+end
+
+function Block:expand_group(i)
+    local children = self.child_groups[i]
+    local pins = self.kind.GROUPS[i].PINS
+
+    local pin = Block:new(Block.PIN, self)
+    pin.pin_kind = pins[#pins]
+
+    table.insert(children, #children, pin)
 end
 
 function Block:save_pin(_)
