@@ -1,3 +1,4 @@
+require("geometry")
 require("graphics")
 require("block")
 require("parser")
@@ -95,10 +96,12 @@ function Camera:new()
     setmetatable(camera, self)
     self.__index = self
 
+    -- camera:set_zoom(2)
+
     return camera
 end
 
-function Camera:update(dt, cursor_block, window_width, window_height)
+function Camera:update(dt, cursor_block, root_block, window_width, window_height)
     local block_text_width, block_text_height
 
     if cursor_block.kind == Block.IDENTIFIER then
@@ -110,23 +113,28 @@ function Camera:update(dt, cursor_block, window_width, window_height)
     end
 
     local target_x = cursor_block.x * self.zoom - window_width / 2 + block_text_width * self.zoom / 2
+    -- local target_x = -Block.PADDING * 2
+    -- target_x = math.min(target_x, root_block.x + root_block.width / 2 - window_width / 2)
     local target_y = cursor_block.y * self.zoom - window_height / 2 + block_text_height * self.zoom / 2
 
-    self.x = self.x + (target_x - self.x) * Camera.PAN_SPEED * dt
-    self.y = self.y + (target_y - self.y) * Camera.PAN_SPEED * dt
+    -- Stop once the camera is close enough, otherwise lerping would end with the camera moving tiny subpixel amounts
+    -- each frame, which would be mostly unoticable except they cause text to jitter as it tries to snap to screen pixels.
+    local stop_distance = math.ceil(self.zoom)
+    self.x = Geometry.lazy_lerp(self.x, target_x, Camera.PAN_SPEED * dt, stop_distance)
+    self.y = Geometry.lazy_lerp(self.y, target_y, Camera.PAN_SPEED * dt, stop_distance)
 
     if is_key_pressed_or_repeat("page_up") then
-        self.zoom = self.zoom + Camera.ZOOM_STEP
-
-        Graphics.set_code_font(Graphics.DEFAULT_CODE_FONT_SIZE * self.zoom)
+        self:set_zoom(self.zoom + Camera.ZOOM_STEP)
     end
 
     if is_key_pressed_or_repeat("page_down") then
-        self.zoom = self.zoom - Camera.ZOOM_STEP
-        self.zoom = math.max(self.zoom, 0.1)
-
-        Graphics.set_code_font(Graphics.DEFAULT_CODE_FONT_SIZE * self.zoom)
+        self:set_zoom(self.zoom - Camera.ZOOM_STEP)
     end
+end
+
+function Camera:set_zoom(zoom)
+    self.zoom = math.max(zoom, 0.1)
+    Graphics.set_code_font(Graphics.DEFAULT_CODE_FONT_SIZE * self.zoom)
 end
 
 function Camera:get_text_width(text)
@@ -471,7 +479,7 @@ function lyte.tick(dt, window_width, window_height)
         update_cursor()
     end
 
-    camera:update(dt, cursor_block, window_width, window_height)
+    camera:update(dt, cursor_block, root_block, window_width, window_height)
 
     lyte.push_matrix()
 
