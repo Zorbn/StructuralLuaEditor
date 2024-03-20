@@ -1,5 +1,5 @@
-require("block")
 require("graphics")
+require("block")
 require("parser")
 require("lexer")
 

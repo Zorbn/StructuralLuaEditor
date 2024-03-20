@@ -11,6 +11,8 @@ local function new_block_group(group)
     return group
 end
 
+lyte.set_font(Graphics.code_font)
+
 Block = {
     EVEN_COLOR = {
         R = 247 / 255,
