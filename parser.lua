@@ -1,9 +1,10 @@
 Parser = {
 }
 
-function Parser:new(lexer)
+function Parser:new(lexer, camera)
     local parser = {
         lexer = lexer,
+        camera = camera,
     }
 
     setmetatable(parser, self)
@@ -217,7 +218,7 @@ function Parser:identifier(parent)
 
     local block = Block:new(Block.IDENTIFIER, parent)
     block.text = text
-    block:update_text_size()
+    block:update_text_size(self.camera)
 
     return block
 end

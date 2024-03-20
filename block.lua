@@ -231,10 +231,10 @@ function Block:new(kind, parent)
     return block
 end
 
-function Block:update_text_size()
+function Block:update_text_size(camera)
     lyte.set_font(Graphics.code_font)
-    self.text_width = lyte.get_text_width(self.text)
-    self.text_height = lyte.get_text_height(self.text)
+    self.text_width = camera:get_text_width(self.text)
+    self.text_height = camera:get_text_height(self.text)
 end
 
 function Block:update_tree(x, y)

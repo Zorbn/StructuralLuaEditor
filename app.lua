@@ -129,6 +129,10 @@ function Camera:update(dt, cursor_block, window_width, window_height)
     end
 end
 
+function Camera:get_text_width(text)
+    return lyte.get_text_width(text) / self.zoom
+end
+
 function Camera:get_text_height(text)
     return lyte.get_text_height(text) / self.zoom
 end
@@ -141,7 +145,7 @@ do
     local data = lyte.load_textfile("save.lua")
     if data then
         local lexer = Lexer:new(data)
-        local parser = Parser:new(lexer)
+        local parser = Parser:new(lexer, camera)
         root_block = parser:statement(nil)
         collectgarbage("collect")
     else
@@ -311,7 +315,7 @@ local function try_fill_pin(search_text, do_insert)
 
         if do_insert then
             cursor_block.text = search_text
-            cursor_block:update_text_size()
+            cursor_block:update_text_size(camera)
         end
 
         root_block:update_tree(root_block.x, root_block.y)
