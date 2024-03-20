@@ -1,6 +1,6 @@
 Graphics = {
     DEFAULT_FONT_SIZE = 26,
-    DEFAULT_CODE_FONT_SIZE = 13,
+    DEFAULT_CODE_FONT_SIZE = 16,
     FONT_NAME = "DejaVuSans.ttf",
     code_font = nil,
     default_font = nil,

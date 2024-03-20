@@ -39,7 +39,7 @@ Block = {
         G = 218 / 255,
         B = 218 / 255,
     },
-    PADDING = 4,
+    PADDING = 6,
 
     PIN = {
         PIN_KIND = nil,
