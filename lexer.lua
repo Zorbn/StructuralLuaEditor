@@ -74,7 +74,7 @@ function Lexer:next()
             self.position = self.position + 1
         end
 
-        local finish = self.position + 1
+        local finish = self.position - 1
 
         return self.data:sub(start, finish)
     end
