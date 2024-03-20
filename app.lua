@@ -12,6 +12,7 @@ TODO:
 - Have two types of pins, pins that must be filled (highlighted red) "!" and pins that are optional "?".
 - Add importing Lua code.
 - Support multiple files.
+- When moving between groups, move to the closest node in the group, the node the cursor was in in the previous group.
 
 - if should look like
 (if
@@ -117,14 +118,14 @@ function Camera:update(dt, cursor_block, window_width, window_height)
     if is_key_pressed_or_repeat("page_up") then
         self.zoom = self.zoom + Camera.ZOOM_STEP
 
-        Graphics.set_default_font(Graphics.DEFAULT_FONT_SIZE * self.zoom)
+        Graphics.set_code_font(Graphics.DEFAULT_CODE_FONT_SIZE * self.zoom)
     end
 
     if is_key_pressed_or_repeat("page_down") then
         self.zoom = self.zoom - Camera.ZOOM_STEP
         self.zoom = math.max(self.zoom, 0.1)
 
-        Graphics.set_default_font(Graphics.DEFAULT_FONT_SIZE * self.zoom)
+        Graphics.set_code_font(Graphics.DEFAULT_CODE_FONT_SIZE * self.zoom)
     end
 end
 
@@ -448,7 +449,7 @@ local function draw_text_input(prefix, text)
     local display_text_height = lyte.get_text_height(display_text)
     lyte.draw_text(display_text, 10, 0)
     Graphics.set_color(Block.CURSOR_COLOR)
-    lyte.draw_rect(display_text_width + 10, 5, 5, display_text_height + 5)
+    lyte.draw_rect(display_text_width + 10, 5, 5, display_text_height)
 end
 
 local BACKGROUND_COLOR = {

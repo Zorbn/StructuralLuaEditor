@@ -39,7 +39,7 @@ Block = {
         G = 218 / 255,
         B = 218 / 255,
     },
-    PADDING = 8,
+    PADDING = 4,
 
     PIN = {
         PIN_KIND = nil,
@@ -232,7 +232,7 @@ function Block:new(kind, parent)
 end
 
 function Block:update_text_size()
-    lyte.set_font(Graphics.default_font)
+    lyte.set_font(Graphics.code_font)
     self.text_width = lyte.get_text_width(self.text)
     self.text_height = lyte.get_text_height(self.text)
 end

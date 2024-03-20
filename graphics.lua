@@ -1,18 +1,20 @@
 Graphics = {
     DEFAULT_FONT_SIZE = 26,
+    DEFAULT_CODE_FONT_SIZE = 13,
+    FONT_NAME = "DejaVuSans.ttf",
     code_font = nil,
     default_font = nil,
 }
 
-Graphics.default_font = lyte.load_font("Roboto-Regular.ttf", Graphics.DEFAULT_FONT_SIZE)
+Graphics.default_font = lyte.load_font(Graphics.FONT_NAME, Graphics.DEFAULT_FONT_SIZE)
 
-function Graphics.set_default_font(size)
-    Graphics.code_font = lyte.load_font("Roboto-Regular.ttf", size)
+function Graphics.set_code_font(size)
+    Graphics.code_font = lyte.load_font(Graphics.FONT_NAME, size)
     lyte.set_font(Graphics.code_font)
     collectgarbage("collect")
 end
 
-Graphics.set_default_font(Graphics.DEFAULT_FONT_SIZE)
+Graphics.set_code_font(Graphics.DEFAULT_CODE_FONT_SIZE)
 
 function Graphics.draw_text(text, x, y, camera)
     lyte.set_font(Graphics.code_font)
