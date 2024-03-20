@@ -134,7 +134,6 @@ end
 
 local camera = Camera:new()
 
--- local root_block = Block:new(Block.DO, nil)
 local root_block
 
 do
@@ -178,7 +177,13 @@ end
 
 local function try_move_cursor_up_local()
     if cursor_block.parent then
-        cursor_block = cursor_block.parent
+        if cursor_group_i > 1 then
+            local group = cursor_block.parent.child_groups[cursor_group_i - 1]
+            cursor_block = group[#group]
+        else
+            cursor_block = cursor_block.parent
+        end
+
         update_cursor_child_indices()
         return true
     end
@@ -187,7 +192,13 @@ local function try_move_cursor_up_local()
 end
 
 local function try_move_cursor_down_local()
-    if cursor_block.child_groups[1][1] then
+    if cursor_block.parent and
+        cursor_group_i < #cursor_block.parent.child_groups then
+
+        cursor_block = cursor_block.parent.child_groups[cursor_group_i + 1][1]
+        update_cursor_child_indices()
+        return true
+    elseif cursor_block.child_groups[1][1] then
         cursor_block = cursor_block.child_groups[1][1]
         update_cursor_child_indices()
         return true
@@ -336,10 +347,6 @@ local function try_expand()
         return
     end
 
-    -- local children = cursor_block.parent.child_groups[cursor_group_i]
-    -- local pin = Block:new(Block.PIN, cursor_block.parent)
-    -- pin.pin_kind = cursor_block.pin_kind
-    -- table.insert(children, #children, pin)
     cursor_block.parent:expand_group(cursor_group_i)
 
     root_block:update_tree(root_block.x, root_block.y)
@@ -371,13 +378,9 @@ local function update_cursor()
     end
 
     if is_key_pressed_or_repeat("up") or is_key_pressed_or_repeat("e") or is_key_pressed_or_repeat("i") then
-        if not try_move_cursor_up() then
-            try_move_cursor_left()
-        end
+        try_move_cursor_up()
     elseif is_key_pressed_or_repeat("down") or is_key_pressed_or_repeat("d") or is_key_pressed_or_repeat("k") then
-        if not try_move_cursor_down() then
-            try_move_cursor_right()
-        end
+        try_move_cursor_down()
     elseif is_key_pressed_or_repeat("left") or is_key_pressed_or_repeat("s") or is_key_pressed_or_repeat("j") then
         if not try_move_cursor_left() then
             try_move_cursor_up()
