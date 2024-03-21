@@ -26,6 +26,10 @@ if condition then
 ... -- else ifs generated from any additional cases
 -- else generated if else statement exists
 
+-- Options for advancing the controls:
+
+-- Let the cursor select the gaps on the edges of blocks in expandable space. If a space is expandable but contains no blocks, there should be one gap present to select and start adding from.
+
 ]]--
 
 local function is_key_pressed_or_repeat(key)
@@ -84,6 +88,7 @@ end
 local Camera = {
     ZOOM_STEP = 0.25,
     PAN_SPEED = 10,
+    DO_PAN_HORIZONTALLY = false,
 }
 
 function Camera:new()
@@ -112,9 +117,13 @@ function Camera:update(dt, cursor_block, root_block, window_width, window_height
         block_text_height = cursor_block.kind.GROUPS[1].TEXT_HEIGHT
     end
 
-    local target_x = cursor_block.x * self.zoom - window_width / 2 + block_text_width * self.zoom / 2
-    -- local target_x = -Block.PADDING * 2
-    -- target_x = math.min(target_x, root_block.x + root_block.width / 2 - window_width / 2)
+    local target_x
+    if Camera.DO_PAN_HORIZONTALLY then
+        target_x = cursor_block.x * self.zoom - window_width / 2 + block_text_width * self.zoom / 2
+    else
+        target_x = -Block.PADDING * self.zoom * 2
+        target_x = math.min(target_x, root_block.x * self.zoom + root_block.width * self.zoom / 2 - window_width / 2)
+    end
     local target_y = cursor_block.y * self.zoom - window_height / 2 + block_text_height * self.zoom / 2
 
     -- Stop once the camera is close enough, otherwise lerping would end with the camera moving tiny subpixel amounts
@@ -341,9 +350,23 @@ local function try_delete()
     if cursor_block.kind == Block.PIN and
         cursor_block.parent.kind.GROUPS[cursor_group_i].HAS_EXPANDER and
         cursor_i >= #cursor_block.parent.kind.GROUPS[cursor_group_i].PINS then
+        -- This is a pin created by expansion, so we can fully remove it and the expander after it.
 
-        cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i + 1]
-        table.remove(cursor_block.parent.child_groups[cursor_group_i], cursor_i)
+        local group = cursor_block.parent.child_groups[cursor_group_i]
+        local delete_i = cursor_i
+
+        if cursor_i < #group - 1 then
+            cursor_i = cursor_i + 2
+            cursor_block = group[cursor_i]
+        elseif cursor_i > 1 then
+            cursor_i = cursor_i - 1
+            cursor_block = group[cursor_i]
+        else
+            cursor_block = cursor_block.parent
+        end
+
+        table.remove(group, delete_i)
+        table.remove(group, delete_i)
     else
         local new_pin = Block:new(Block.PIN, cursor_block.parent)
         local last_pin_i = math.min(cursor_i, #cursor_block.parent.kind.GROUPS[cursor_group_i].PINS)
@@ -360,11 +383,9 @@ local function try_expand()
         return
     end
 
-    cursor_block.parent:expand_group(cursor_group_i)
-
+    cursor_i = cursor_block.parent:expand_group(cursor_group_i)
+    cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i]
     root_block:update_tree(root_block.x, root_block.y)
-
-    update_cursor_child_indices()
 end
 
 local InteractionState = {
@@ -378,7 +399,7 @@ local search_text = ""
 local insert_text = ""
 
 local function update_cursor()
-    if lyte.is_key_down("left_control") then
+    if lyte.is_key_down("left_control") or lyte.is_key_down("right_control") then
         if lyte.is_key_down("s") then
             local data = Writer:new()
             root_block:save(data)
@@ -407,7 +428,6 @@ local function update_cursor()
     if lyte.is_key_pressed("space") then
         if cursor_block.kind == Block.EXPANDER then
             try_expand()
-            try_move_cursor_left_local()
         end
 
         interaction_state = InteractionState.SEARCH
@@ -417,7 +437,6 @@ local function update_cursor()
     if lyte.is_key_pressed("enter") then
         if cursor_block.kind == Block.EXPANDER then
             try_expand()
-            try_move_cursor_left_local()
         end
 
         interaction_state = InteractionState.INSERT

@@ -18,13 +18,10 @@ end
 function Parser:parse_do(parent)
     local do_block = Block:new(Block.DO, parent)
 
-    local child_i = 1
     while self.lexer:peek() ~= "end" do
         local statement = self:statement(do_block)
-        do_block:expand_group(1)
+        local child_i = do_block:expand_group(1)
         do_block.child_groups[1][child_i] = statement
-
-        child_i = child_i + 1
     end
 
     return do_block
@@ -58,11 +55,8 @@ end
 function Parser:parse_function(parent, is_lambda)
     local function_block = Block:new(Block.FUNCTION, parent)
 
-    local child_i = 1
-
     if not is_lambda then
         function_block.child_groups[1][1] = self:identifier(function_block)
-        child_i = child_i + 1
     end
 
     if self.lexer:next() ~= "(" then
@@ -71,10 +65,8 @@ function Parser:parse_function(parent, is_lambda)
 
     while self.lexer:peek() ~= ")" do
         local identifier = self:identifier(function_block)
-        function_block:expand_group(1)
+        local child_i = function_block:expand_group(1)
         function_block.child_groups[1][child_i] = identifier
-
-        child_i = child_i + 1
 
         if self.lexer:peek() ~= "," then
             break
@@ -87,13 +79,10 @@ function Parser:parse_function(parent, is_lambda)
         error("expected closing ) in function")
     end
 
-    child_i = 1
     while self.lexer:peek() ~= "end" do
         local statement = self:statement(function_block)
-        function_block:expand_group(2)
+        local child_i = function_block:expand_group(2)
         function_block.child_groups[2][child_i] = statement
-
-        child_i = child_i + 1
     end
 
     self.lexer:next()
@@ -112,19 +101,20 @@ function Parser:parse_addition(parent)
     left.parent = add
     add.child_groups[1][1] = left
 
-    local child_i = 2
+    local i = 2
     while self.lexer:peek() == "+" do
         self.lexer:next() -- "+"
 
         local expression = self:parse_unary_suffix(add)
 
-        if child_i > 2 then
-            add:expand_group(1)
+        local child_i = i
+        if i > 2 then
+            child_i = add:expand_group(1)
         end
 
         add.child_groups[1][child_i] = expression
 
-        child_i = child_i + 1
+        i = i + 1
     end
 
     return add
@@ -134,19 +124,18 @@ function Parser:parse_unary_suffix(parent)
     local left = self:parse_primary(parent)
 
     while self.lexer:peek() == "(" do
+        -- This is a call.
+
         self.lexer:next() -- "("
 
         local call = Block:new(Block.CALL, parent)
         left.parent = call
         call.child_groups[1][1] = left
 
-        local child_i = 2
         while self.lexer:peek() ~= ")" do
             local expression = self:expression(call)
-            call:expand_group(1)
+            local child_i = call:expand_group(1)
             call.child_groups[1][child_i] = expression
-
-            child_i = child_i + 1
 
             if self.lexer:peek() ~= "," then
                 break
