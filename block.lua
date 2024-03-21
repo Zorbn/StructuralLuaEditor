@@ -407,22 +407,26 @@ function Block:draw(cursor_block, camera, depth)
     end
 end
 
-function Block:expand_group(i)
-    -- TODO: Sanity check, make sure this group can be expanded before trying to do it.
+function Block:expand_group(group_i, i)
+    if not self.kind.GROUPS[group_i].HAS_EXPANDER then
+        return
+    end
 
-    local children = self.child_groups[i]
-    local pins = self.kind.GROUPS[i].PINS
+    i = i or #self.child_groups[group_i]
+
+    local children = self.child_groups[group_i]
+    local pins = self.kind.GROUPS[group_i].PINS
 
     local pin = Block:new(Block.PIN, self)
     pin.pin_kind = pins[#pins]
 
-    table.insert(children, pin)
-    local pin_i = #children
+    local pin_i = i + 1
+    table.insert(children, pin_i, pin)
 
     local expander = Block:new(Block.EXPANDER, self)
     pin.pin_kind = pins[#pins]
 
-    table.insert(children, expander)
+    table.insert(children, pin_i + 1, expander)
 
     return pin_i
 end

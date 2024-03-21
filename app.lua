@@ -355,10 +355,7 @@ local function try_delete()
         local group = cursor_block.parent.child_groups[cursor_group_i]
         local delete_i = cursor_i
 
-        if cursor_i < #group - 1 then
-            cursor_i = cursor_i + 2
-            cursor_block = group[cursor_i]
-        elseif cursor_i > 1 then
+        if cursor_i > 1 then
             cursor_i = cursor_i - 1
             cursor_block = group[cursor_i]
         else
@@ -383,7 +380,7 @@ local function try_expand()
         return
     end
 
-    cursor_i = cursor_block.parent:expand_group(cursor_group_i)
+    cursor_i = cursor_block.parent:expand_group(cursor_group_i, cursor_i)
     cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i]
     root_block:update_tree(root_block.x, root_block.y)
 end
