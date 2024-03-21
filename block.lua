@@ -256,7 +256,7 @@ function Block:only_has_expanders()
         end
     end
 
-    return true
+    return self:has_child()
 end
 
 function Block:update_tree(x, y, in_vertical_group)
