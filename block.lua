@@ -327,15 +327,15 @@ function Block:update_tree(x, y, in_vertical_group)
             local max_height = 0
 
             for i, child in ipairs(child_group) do
-                if i > 1 and i < #child_group and kind_group.IS_TEXT_INFIX and child_group[i - 1].kind ~= Block.EXPANDER then
-                    x = x + text_width + Block.PADDING
-                end
-
                 child:update_tree(x, y, false)
                 x = x + child.width
 
                 if child:needs_trailing_padding(child_group, i) then
                     x = x + Block.PADDING
+                end
+
+                if i < #child_group and kind_group.IS_TEXT_INFIX and child.kind ~= Block.EXPANDER then
+                    x = x + text_width + Block.PADDING
                 end
 
                 max_height = math.max(max_height, child.height + Block.PADDING)
@@ -429,14 +429,11 @@ function Block:draw(cursor_block, camera, depth)
         local kind_group = self.kind.GROUPS[group_i]
 
         for i, child in ipairs(children) do
-            if i > 1 and i < #children and kind_group.IS_TEXT_INFIX then
-                local last_child = children[i - 1]
-                if last_child.kind ~= Block.EXPANDER then
-                    Graphics.draw_text(text, last_child.x + last_child.width, text_y, camera)
-                end
-            end
-
             child:draw(cursor_block, camera, depth + 1)
+
+            if i < #children and kind_group.IS_TEXT_INFIX and child.kind ~= Block.EXPANDER then
+                Graphics.draw_text(text, child.x + child.width, text_y, camera)
+            end
         end
 
         if group_i < #self.child_groups and #self.child_groups[group_i + 1] > 0 then
