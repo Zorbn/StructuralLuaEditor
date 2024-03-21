@@ -145,6 +145,7 @@ Block = {
         GROUPS = {
             new_block_group({
                 TEXT = "+",
+                IS_TEXT_INFIX = true,
                 HAS_EXPANDER = true,
                 PINS = {
                     PinKind.EXPRESSION,
@@ -242,6 +243,22 @@ function Block:needs_trailing_padding(group, i)
     return self.kind ~= Block.EXPANDER and (i >= #group or group[i + 1].kind ~= Block.EXPANDER)
 end
 
+function Block:has_child()
+    return self.child_groups[1] and self.child_groups[1][1]
+end
+
+function Block:only_has_expanders()
+    for _, child_group in ipairs(self.child_groups) do
+        for _, child in ipairs(child_group) do
+            if child.kind ~= Block.EXPANDER then
+                return false
+            end
+        end
+    end
+
+    return true
+end
+
 function Block:update_tree(x, y, in_vertical_group)
     self.x = x
     self.y = y
@@ -267,7 +284,8 @@ function Block:update_tree(x, y, in_vertical_group)
         return
     end
 
-    local has_child = self.child_groups[1] and self.child_groups[1][1]
+    local has_child = self:has_child()
+    local only_has_expanders = self:only_has_expanders()
 
     x = x + Block.PADDING
 
@@ -275,23 +293,24 @@ function Block:update_tree(x, y, in_vertical_group)
         y = y + Block.PADDING
     end
 
-    x = x + text_width
-
-    if not has_child then
+    if not has_child or only_has_expanders then
         y = y + text_height
     end
-
-    x = x + Block.PADDING
 
     local start_x = x
     local max_width = 0
 
     for group_i, child_group in ipairs(self.child_groups) do
+        local kind_group = self.kind.GROUPS[group_i]
+
         if group_i > 1 then
             y = y + Block.LINE_WIDTH
+        elseif not kind_group.IS_TEXT_INFIX then
+            x = x + text_width + Block.PADDING
+            start_x = x
         end
 
-        if self.kind.GROUPS[group_i].IS_VERTICAL then
+        if kind_group.IS_VERTICAL then
             for i, child in ipairs(child_group) do
                 child:update_tree(x, y, true)
                 x = x + child.width + Block.PADDING
@@ -308,6 +327,10 @@ function Block:update_tree(x, y, in_vertical_group)
             local max_height = 0
 
             for i, child in ipairs(child_group) do
+                if i > 1 and i < #child_group and kind_group.IS_TEXT_INFIX and child_group[i - 1].kind ~= Block.EXPANDER then
+                    x = x + text_width + Block.PADDING
+                end
+
                 child:update_tree(x, y, false)
                 x = x + child.width
 
@@ -322,6 +345,10 @@ function Block:update_tree(x, y, in_vertical_group)
             x = start_x
             y = y + max_height
         end
+    end
+
+    if only_has_expanders then
+        y = y + Block.PADDING
     end
 
     self.width = max_width
@@ -390,7 +417,7 @@ function Block:draw(cursor_block, camera, depth)
     end
 
     local text_y = self.y - Block.PADDING / 2
-    local has_child = self.child_groups[1] and self.child_groups[1][1]
+    local has_child = self:has_child()
 
     if not has_child then
         text_y = text_y - Block.PADDING
@@ -399,7 +426,16 @@ function Block:draw(cursor_block, camera, depth)
     Graphics.draw_text(text, self.x, text_y, camera)
 
     for group_i, children in ipairs(self.child_groups) do
-        for _, child in ipairs(children) do
+        local kind_group = self.kind.GROUPS[group_i]
+
+        for i, child in ipairs(children) do
+            if i > 1 and i < #children and kind_group.IS_TEXT_INFIX then
+                local last_child = children[i - 1]
+                if last_child.kind ~= Block.EXPANDER then
+                    Graphics.draw_text(text, last_child.x + last_child.width, text_y, camera)
+                end
+            end
+
             child:draw(cursor_block, camera, depth + 1)
         end
 

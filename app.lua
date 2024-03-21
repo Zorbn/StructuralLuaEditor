@@ -353,7 +353,9 @@ local function try_delete()
         local group = cursor_block.parent.child_groups[cursor_group_i]
         local delete_i = cursor_i
 
-        if cursor_i > 1 then
+        if cursor_i + 2 <= #group then
+            cursor_block = group[cursor_i + 2]
+        elseif cursor_i > 1 then
             cursor_i = cursor_i - 1
             cursor_block = group[cursor_i]
         else
