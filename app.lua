@@ -26,9 +26,7 @@ if condition then
 ... -- else ifs generated from any additional cases
 -- else generated if else statement exists
 
--- Options for advancing the controls:
-
--- Let the cursor select the gaps on the edges of blocks in expandable space. If a space is expandable but contains no blocks, there should be one gap present to select and start adding from.
+-- Change scaling method, don't use lyte.scale, do things manually to ensure consistent pixel sizes at all scales, ie: outlines should be the same width on all sides, even at 75%.
 
 ]]--
 
@@ -395,8 +393,29 @@ local interaction_state = InteractionState.CURSOR
 local search_text = ""
 local insert_text = ""
 
+local function move_cursor_skipping_expanders(move_function, do_skip)
+    if do_skip then
+        local did_move_succeed = true
+
+        while did_move_succeed do
+            did_move_succeed = move_function()
+
+            if cursor_block.kind ~= Block.EXPANDER then
+                break
+            end
+        end
+
+        return did_move_succeed
+    end
+
+    return move_function()
+end
+
 local function update_cursor()
-    if lyte.is_key_down("left_control") or lyte.is_key_down("right_control") then
+    local is_control_held = lyte.is_key_down("left_control") or lyte.is_key_down("right_control")
+    local is_shift_held = lyte.is_key_down("left_shift") or lyte.is_key_down("right_shift")
+
+    if is_control_held then
         if lyte.is_key_down("s") then
             local data = Writer:new()
             root_block:save(data)
@@ -408,17 +427,19 @@ local function update_cursor()
         return
     end
 
+    local do_skip_expanders = not is_shift_held
+
     if is_key_pressed_or_repeat("up") or is_key_pressed_or_repeat("e") or is_key_pressed_or_repeat("i") then
-        try_move_cursor_up()
+        move_cursor_skipping_expanders(try_move_cursor_up, do_skip_expanders)
     elseif is_key_pressed_or_repeat("down") or is_key_pressed_or_repeat("d") or is_key_pressed_or_repeat("k") then
-        try_move_cursor_down()
+        move_cursor_skipping_expanders(try_move_cursor_down, do_skip_expanders)
     elseif is_key_pressed_or_repeat("left") or is_key_pressed_or_repeat("s") or is_key_pressed_or_repeat("j") then
-        if not try_move_cursor_left() then
-            try_move_cursor_up()
+        if not move_cursor_skipping_expanders(try_move_cursor_left, do_skip_expanders) then
+            move_cursor_skipping_expanders(try_move_cursor_up, do_skip_expanders)
         end
     elseif is_key_pressed_or_repeat("right") or is_key_pressed_or_repeat("f") or is_key_pressed_or_repeat("l") then
-        if not try_move_cursor_right() then
-            try_move_cursor_down()
+        if not move_cursor_skipping_expanders(try_move_cursor_right, do_skip_expanders) then
+            move_cursor_skipping_expanders(try_move_cursor_down, do_skip_expanders)
         end
     end
 

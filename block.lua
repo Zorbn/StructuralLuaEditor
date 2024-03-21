@@ -349,9 +349,13 @@ function Block:draw(cursor_block, camera, depth)
             if width < height then
                 x = x + Block.LINE_WIDTH / 2
                 width = Block.LINE_WIDTH
+                y = y - Block.LINE_WIDTH
+                height = height + Block.LINE_WIDTH * 2
             else
                 y = y + Block.LINE_WIDTH / 2
                 height = Block.LINE_WIDTH
+                x = x - Block.LINE_WIDTH
+                width = width + Block.LINE_WIDTH * 2
             end
 
             lyte.draw_rect(x, y, width, height)
