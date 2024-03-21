@@ -133,6 +133,7 @@ Block = {
         GROUPS = {
             new_block_group({
                 TEXT = "=",
+                IS_TEXT_INFIX = true,
                 PINS = {
                     PinKind.EXPRESSION,
                     PinKind.EXPRESSION,
@@ -259,6 +260,17 @@ function Block:only_has_expanders()
     return self:has_child()
 end
 
+-- TODO: Rather than using stuff like this, there should be an iterator function that iterates over children skipping expanders, and a way to get the #visible_children.
+function Block:get_last_visible_child_i(group)
+    local i = #group
+
+    while i > 0 and group[i].kind == Block.EXPANDER do
+        i = i - 1
+    end
+
+    return i
+end
+
 function Block:update_tree(x, y, in_vertical_group)
     self.x = x
     self.y = y
@@ -325,6 +337,7 @@ function Block:update_tree(x, y, in_vertical_group)
             end
         else
             local max_height = 0
+            local last_visible_child_i = self:get_last_visible_child_i(child_group)
 
             for i, child in ipairs(child_group) do
                 child:update_tree(x, y, false)
@@ -334,7 +347,7 @@ function Block:update_tree(x, y, in_vertical_group)
                     x = x + Block.PADDING
                 end
 
-                if i < #child_group and kind_group.IS_TEXT_INFIX and child.kind ~= Block.EXPANDER then
+                if i < last_visible_child_i and kind_group.IS_TEXT_INFIX and child.kind ~= Block.EXPANDER then
                     x = x + text_width + Block.PADDING
                 end
 
@@ -425,13 +438,14 @@ function Block:draw(cursor_block, camera, depth)
 
     Graphics.draw_text(text, self.x, text_y, camera)
 
-    for group_i, children in ipairs(self.child_groups) do
+    for group_i, child_group in ipairs(self.child_groups) do
         local kind_group = self.kind.GROUPS[group_i]
+        local last_visible_child_i = self:get_last_visible_child_i(child_group)
 
-        for i, child in ipairs(children) do
+        for i, child in ipairs(child_group) do
             child:draw(cursor_block, camera, depth + 1)
 
-            if i < #children and kind_group.IS_TEXT_INFIX and child.kind ~= Block.EXPANDER then
+            if i < last_visible_child_i and kind_group.IS_TEXT_INFIX and child.kind ~= Block.EXPANDER then
                 Graphics.draw_text(text, child.x + child.width, text_y, camera)
             end
         end
