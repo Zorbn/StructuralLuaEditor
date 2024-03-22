@@ -3,6 +3,7 @@ require("graphics")
 require("block")
 require("parser")
 require("lexer")
+require("theme")
 
 --[[
 
@@ -98,8 +99,6 @@ function Camera:new()
 
     setmetatable(camera, self)
     self.__index = self
-
-    -- camera:set_zoom(2)
 
     return camera
 end
@@ -499,15 +498,9 @@ local function draw_text_input(prefix, text)
     local display_text_width = lyte.get_text_width(display_text)
     local display_text_height = lyte.get_text_height(display_text)
     lyte.draw_text(display_text, 10, 0)
-    Graphics.set_color(Block.CURSOR_COLOR)
+    Graphics.set_color(Theme.CURSOR_COLOR)
     lyte.draw_rect(display_text_width + 10, 5, 5, display_text_height)
 end
-
-local BACKGROUND_COLOR = {
-    R = 221 / 255,
-    G = 221 / 255,
-    B = 221 / 255,
-}
 
 function lyte.tick(dt, window_width, window_height)
     if interaction_state == InteractionState.SEARCH then
@@ -525,13 +518,13 @@ function lyte.tick(dt, window_width, window_height)
     lyte.translate(-camera.x, -camera.y)
     lyte.scale(camera.zoom, camera.zoom)
 
-    lyte.cls(BACKGROUND_COLOR.R, BACKGROUND_COLOR.G, BACKGROUND_COLOR.B, 1)
+    lyte.cls(Theme.BACKGROUND_COLOR.R, Theme.BACKGROUND_COLOR.G, Theme.BACKGROUND_COLOR.B, 1)
 
     root_block:draw(cursor_block, camera, 0)
 
     lyte.pop_matrix()
 
-    Graphics.set_color(Block.TEXT_COLOR)
+    Graphics.set_color(Theme.TEXT_COLOR)
 
     if interaction_state == InteractionState.SEARCH then
         draw_text_input("Search: ", search_text)

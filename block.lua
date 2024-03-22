@@ -14,31 +14,6 @@ end
 lyte.set_font(Graphics.code_font)
 
 Block = {
-    EVEN_COLOR = {
-        R = 247 / 255,
-        G = 247 / 255,
-        B = 247 / 255,
-    },
-    ODD_COLOR = {
-        R = 240 / 255,
-        G = 240 / 255,
-        B = 240 / 255,
-    },
-    TEXT_COLOR = {
-        R = 0,
-        G = 0,
-        B = 0,
-    },
-    CURSOR_COLOR = {
-        R = 0 / 255,
-        G = 122 / 255,
-        B = 204 / 255,
-    },
-    PIN_COLOR = {
-        R = 218 / 255,
-        G = 218 / 255,
-        B = 218 / 255,
-    },
     PADDING = 6,
     LINE_WIDTH = 3,
 
@@ -370,16 +345,16 @@ end
 
 function Block.get_depth_color(depth)
     if depth % 2 == 0 then
-        return Block.EVEN_COLOR
+        return Theme.EVEN_COLOR
     end
 
-    return Block.ODD_COLOR
+    return Theme.ODD_COLOR
 end
 
 function Block:draw(cursor_block, camera, depth)
     if self.kind == Block.EXPANDER then
         if self == cursor_block then
-            Graphics.set_color(Block.CURSOR_COLOR)
+            Graphics.set_color(Theme.CURSOR_COLOR)
 
             local x = self.x - Block.PADDING
             local y = self.y - Block.PADDING
@@ -405,21 +380,21 @@ function Block:draw(cursor_block, camera, depth)
     end
 
     if self == cursor_block then
-        Graphics.set_color(Block.CURSOR_COLOR)
+        Graphics.set_color(Theme.CURSOR_COLOR)
 
         lyte.draw_rect(self.x - Block.PADDING - Block.LINE_WIDTH, self.y - Block.PADDING - Block.LINE_WIDTH, self.width + Block.LINE_WIDTH * 2,
             self.height + Block.LINE_WIDTH * 2)
     end
 
     if self.kind == Block.PIN or self.kind == Block.EXPANDER then
-        Graphics.set_color(Block.PIN_COLOR)
+        Graphics.set_color(Theme.PIN_COLOR)
     else
         Graphics.set_color(Block.get_depth_color(depth))
     end
 
     lyte.draw_rect(self.x - Block.PADDING, self.y - Block.PADDING, self.width, self.height)
 
-    Graphics.set_color(Block.TEXT_COLOR)
+    Graphics.set_color(Theme.TEXT_COLOR)
 
     -- TODO: Fix this to work for multiple groups.
     local text
