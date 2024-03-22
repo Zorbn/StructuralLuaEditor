@@ -205,8 +205,6 @@ local function try_cursor_ascend()
 end
 
 local function try_cursor_descend()
-    print("descent")
-
     if cursor_block.child_groups[1][1] then
         cursor_block = cursor_block.child_groups[1][1]
         update_cursor_child_indices()
@@ -298,36 +296,54 @@ local Direction = {
     RIGHT = 4,
 }
 
-local function try_insert(search_text, direction)
-    if not cursor_block.parent then
-        return
-    end
-
+local function get_insert_target_i(direction)
     local target_i = cursor_i
 
     if is_cursor_vertical() then
         if direction == Direction.DOWN then
             target_i = target_i + 1
         elseif direction and direction ~= Direction.UP then
-            return
+            return nil
         end
     else
         if direction == Direction.RIGHT then
             target_i = target_i + 1
         elseif direction and direction ~= Direction.LEFT then
-            return
+            return nil
         end
     end
 
+    return target_i
+end
+
+local function get_insert_default_child(target_i)
     local default_children = cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN
-    local pin_kind_i = math.min(target_i, #default_children)
-    local pin_kind = default_children[pin_kind_i].pin_kind
+    local default_child_i = math.min(target_i, #default_children)
+
+    return default_children[default_child_i]
+end
+
+local function try_insert(search_text, direction)
+    if not cursor_block.parent then
+        return
+    end
+
+    local target_i = get_insert_target_i(direction)
+    if not target_i then
+        return
+    end
+
+    local default_child = get_insert_default_child(target_i)
+    local pin_kind = default_child.pin_kind
     local block_kind_choices = PIN_BLOCKS[pin_kind]
 
-    local chosen_block_kind = nil
-    for _, block_kind in ipairs(block_kind_choices) do
-        if block_kind.GROUPS[1].TEXT == search_text then
-            chosen_block_kind = block_kind
+    local chosen_block_kind = default_child.block_kind ~= Block.PIN and default_child.block_kind or nil
+
+    if not chosen_block_kind then
+        for _, block_kind in ipairs(block_kind_choices) do
+            if block_kind.GROUPS[1].TEXT == search_text then
+                chosen_block_kind = block_kind
+            end
         end
     end
 
@@ -411,6 +427,19 @@ local insert_direction = nil
 local function start_insert_mode(direction)
     interaction_state = InteractionState.INSERT
     insert_direction = direction
+
+    local target_i = get_insert_target_i(insert_direction)
+    if not target_i then
+        interaction_state = InteractionState.CURSOR
+        return
+    end
+
+    local default_child = get_insert_default_child(target_i)
+
+    if default_child.block_kind ~= Block.PIN then
+        try_insert("", insert_direction)
+        interaction_state = InteractionState.CURSOR
+    end
 end
 
 local function update_cursor()

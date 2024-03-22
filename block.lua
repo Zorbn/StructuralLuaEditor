@@ -128,8 +128,7 @@ Block.IF = {
             IS_VERTICAL = true,
             IS_GROWABLE = false,
             DEFAULT_CHILDREN = {
-                -- new_default_child_pin(PinKind.STATEMENT),
-                new_default_child(Block.CASE),
+                new_default_child_pin(PinKind.STATEMENT),
             },
         }),
     },
