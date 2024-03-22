@@ -346,7 +346,7 @@ local function try_delete()
 
     if cursor_block.kind == Block.PIN and
         cursor_block.parent.kind.GROUPS[cursor_group_i].HAS_EXPANDER and
-        cursor_i >= #cursor_block.parent.kind.GROUPS[cursor_group_i].PINS then
+        cursor_i >= #cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN then
         -- This is a pin created by expansion, so we can fully remove it and the expander after it.
 
         local group = cursor_block.parent.child_groups[cursor_group_i]
@@ -364,11 +364,13 @@ local function try_delete()
         table.remove(group, delete_i)
         table.remove(group, delete_i)
     else
-        local new_pin = Block:new(Block.PIN, cursor_block.parent)
-        local last_pin_i = math.min(cursor_i, #cursor_block.parent.kind.GROUPS[cursor_group_i].PINS)
-        new_pin.pin_kind = cursor_block.parent.kind.GROUPS[cursor_group_i].PINS[last_pin_i]
-        cursor_block.parent.child_groups[cursor_group_i][cursor_i] = new_pin
-        cursor_block = new_pin
+        local default_child_i = math.min(cursor_i, #cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN)
+        local default_child = cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN[default_child_i]
+
+        local child = Block:new(default_child.block_kind, cursor_block.parent)
+        child.pin_kind = default_child.pin_kind
+        cursor_block.parent.child_groups[cursor_group_i][cursor_i] = child
+        cursor_block = child
     end
 
     root_block:update_tree(root_block.x, root_block.y)

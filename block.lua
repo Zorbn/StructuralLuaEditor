@@ -16,142 +16,185 @@ lyte.set_font(Graphics.code_font)
 Block = {
     PADDING = 6,
     LINE_WIDTH = 3,
+}
 
-    PIN = {
-        PIN_KIND = nil,
-        GROUPS = {
-            new_block_group({
-                TEXT = ".",
-                PINS = {},
-            }),
-        },
+Block.PIN = {
+    PIN_KIND = nil,
+    GROUPS = {
+        new_block_group({
+            TEXT = ".",
+            DEFAULT_CHILDREN = {},
+        }),
     },
-    EXPANDER = {
-        PIN_KIND = nil,
-        GROUPS = {
-            new_block_group({
-                TEXT = ";",
-                PINS = {},
-            }),
-        },
+}
+
+Block.EXPANDER = {
+    PIN_KIND = nil,
+    GROUPS = {
+        new_block_group({
+            TEXT = ";",
+            DEFAULT_CHILDREN = {},
+        }),
     },
-    DO = {
-        PIN_KIND = PinKind.STATEMENT,
-        GROUPS = {
-            new_block_group({
-                TEXT = "do",
-                IS_VERTICAL = true,
-                HAS_EXPANDER = true,
-                PINS = {
-                    PinKind.STATEMENT,
-                },
-            }),
-        },
+}
+
+local function new_default_child(block_kind)
+    return {
+        block_kind = block_kind,
+        pin_kind = block_kind.PIN_KIND,
+    }
+end
+
+local function new_default_child_pin(pin_kind)
+    return {
+        block_kind = Block.PIN,
+        pin_kind = pin_kind,
+    }
+end
+
+Block.DO = {
+    PIN_KIND = PinKind.STATEMENT,
+    GROUPS = {
+        new_block_group({
+            TEXT = "do",
+            IS_VERTICAL = true,
+            HAS_EXPANDER = true,
+            DEFAULT_CHILDREN = {
+                new_default_child_pin(PinKind.STATEMENT),
+            },
+        }),
     },
-    FUNCTION = {
-        PIN_KIND = PinKind.STATEMENT,
-        GROUPS = {
-            new_block_group({
-                TEXT = "fn",
-                HAS_EXPANDER = true,
-                PINS = {
-                    PinKind.IDENTIFIER,
-                    PinKind.IDENTIFIER,
-                },
-            }),
-            new_block_group({
-                TEXT = "",
-                IS_VERTICAL = true,
-                HAS_EXPANDER = true,
-                PINS = {
-                    PinKind.STATEMENT,
-                },
-            }),
-        },
+}
+
+Block.FUNCTION = {
+    PIN_KIND = PinKind.STATEMENT,
+    GROUPS = {
+        new_block_group({
+            TEXT = "fn",
+            HAS_EXPANDER = true,
+            DEFAULT_CHILDREN = {
+                new_default_child_pin(PinKind.IDENTIFIER),
+                new_default_child_pin(PinKind.IDENTIFIER),
+            },
+        }),
+        new_block_group({
+            TEXT = "",
+            IS_VERTICAL = true,
+            HAS_EXPANDER = true,
+            DEFAULT_CHILDREN = {
+                new_default_child_pin(PinKind.STATEMENT),
+            },
+        }),
     },
-    LAMBDA_FUNCTION = {
-        PIN_KIND = PinKind.EXPRESSION,
-        GROUPS = {
-            new_block_group({
-                TEXT = "fn",
-                HAS_EXPANDER = true,
-                PINS = {
-                    PinKind.IDENTIFIER,
-                },
-            }),
-            new_block_group({
-                TEXT = "",
-                IS_VERTICAL = true,
-                HAS_EXPANDER = true,
-                PINS = {
-                    PinKind.STATEMENT,
-                },
-            }),
-        },
+}
+
+Block.LAMBDA_FUNCTION = {
+    PIN_KIND = PinKind.EXPRESSION,
+    GROUPS = {
+        new_block_group({
+            TEXT = "fn",
+            HAS_EXPANDER = true,
+            DEFAULT_CHILDREN = {
+                new_default_child_pin(PinKind.IDENTIFIER),
+            },
+        }),
+        new_block_group({
+            TEXT = "",
+            IS_VERTICAL = true,
+            HAS_EXPANDER = true,
+            DEFAULT_CHILDREN = {
+                new_default_child_pin(PinKind.STATEMENT),
+            },
+        }),
     },
-    IF = {
-        PIN_KIND = PinKind.STATEMENT,
-        GROUPS = {
-            new_block_group({
-                TEXT = "if",
-                IS_VERTICAL = true,
-                PINS = {
-                    PinKind.EXPRESSION,
-                    PinKind.STATEMENT,
-                    PinKind.STATEMENT,
-                },
-            }),
-        },
+}
+
+Block.CASE = {
+    PIN_KIND = PinKind.STATEMENT,
+    GROUPS = {
+        new_block_group({
+            TEXT = "case",
+            DEFAULT_CHILDREN = {
+                new_default_child_pin(PinKind.EXPRESSION),
+                new_default_child_pin(PinKind.STATEMENT),
+            },
+        }),
     },
-    ASSIGNMENT = {
-        PIN_KIND = PinKind.STATEMENT,
-        GROUPS = {
-            new_block_group({
-                TEXT = "=",
-                IS_TEXT_INFIX = true,
-                PINS = {
-                    PinKind.EXPRESSION,
-                    PinKind.EXPRESSION,
-                },
-            }),
-        },
+}
+
+Block.IF = {
+    PIN_KIND = PinKind.STATEMENT,
+    GROUPS = {
+        new_block_group({
+            TEXT = "if",
+            IS_VERTICAL = true,
+            HAS_EXPANDER = true,
+            DEFAULT_CHILDREN = {
+                new_default_child(Block.CASE),
+            },
+        }),
+        new_block_group({
+            TEXT = "",
+            IS_VERTICAL = true,
+            HAS_EXPANDER = true,
+            DEFAULT_CHILDREN = {
+                new_default_child_pin(PinKind.STATEMENT),
+            },
+        }),
     },
-    ADD = {
-        PIN_KIND = PinKind.EXPRESSION,
-        GROUPS = {
-            new_block_group({
-                TEXT = "+",
-                IS_TEXT_INFIX = true,
-                HAS_EXPANDER = true,
-                PINS = {
-                    PinKind.EXPRESSION,
-                    PinKind.EXPRESSION,
-                    PinKind.EXPRESSION,
-                },
-            }),
-        }
+}
+
+Block.ASSIGNMENT = {
+    PIN_KIND = PinKind.STATEMENT,
+    GROUPS = {
+        new_block_group({
+            TEXT = "=",
+            IS_TEXT_INFIX = true,
+            DEFAULT_CHILDREN = {
+                new_default_child_pin(PinKind.EXPRESSION),
+                new_default_child_pin(PinKind.EXPRESSION),
+            },
+        }),
     },
-    CALL = {
-        PIN_KIND = PinKind.EXPRESSION,
-        GROUPS = {
-            new_block_group({
-                TEXT = "call",
-                HAS_EXPANDER = true,
-                PINS = {
-                    PinKind.EXPRESSION,
-                    PinKind.EXPRESSION,
-                },
-            }),
-        }
-    },
-    IDENTIFIER = {
-        PIN_KIND = PinKind.IDENTIFIER,
-        GROUPS = {
-            new_block_group({
-                TEXT = "",
-                PINS = {},
-            }),
-        }
+}
+
+Block.ADD = {
+    PIN_KIND = PinKind.EXPRESSION,
+    GROUPS = {
+        new_block_group({
+            TEXT = "+",
+            IS_TEXT_INFIX = true,
+            HAS_EXPANDER = true,
+            DEFAULT_CHILDREN = {
+                new_default_child_pin(PinKind.EXPRESSION),
+                new_default_child_pin(PinKind.EXPRESSION),
+                new_default_child_pin(PinKind.EXPRESSION),
+            },
+        }),
+    }
+}
+
+Block.CALL = {
+    PIN_KIND = PinKind.EXPRESSION,
+    GROUPS = {
+        new_block_group({
+            TEXT = "call",
+            HAS_EXPANDER = true,
+            DEFAULT_CHILDREN = {
+                new_default_child_pin(PinKind.EXPRESSION),
+                new_default_child_pin(PinKind.EXPRESSION),
+            },
+        }),
+    }
+}
+
+Block.IDENTIFIER = {
+    PIN_KIND = PinKind.IDENTIFIER,
+    GROUPS = {
+        new_block_group({
+            TEXT = "",
+            DEFAULT_CHILDREN = {},
+        }),
     }
 }
 
@@ -191,15 +234,15 @@ function Block:new(kind, parent)
     for group_i, group in ipairs(kind.GROUPS) do
         block.child_groups[group_i] = {}
 
-        for i, pin_kind in ipairs(group.PINS) do
-            local block_kind = Block.PIN
+        for i, default_child in ipairs(group.DEFAULT_CHILDREN) do
+            local block_kind = default_child.block_kind
 
-            if group.HAS_EXPANDER and i == #group.PINS then
+            if group.HAS_EXPANDER and i == #group.DEFAULT_CHILDREN then
                 block_kind = Block.EXPANDER
             end
 
             block.child_groups[group_i][i] = Block:new(block_kind, block)
-            block.child_groups[group_i][i].pin_kind = pin_kind
+            block.child_groups[group_i][i].pin_kind = default_child.pin_kind
         end
     end
 
@@ -223,23 +266,21 @@ function Block:has_child()
     return self.child_groups[1] and self.child_groups[1][1]
 end
 
-function Block:only_has_expanders()
-    for _, child_group in ipairs(self.child_groups) do
-        for _, child in ipairs(child_group) do
-            if child.kind ~= Block.EXPANDER then
-                return false
-            end
+function Block:only_has_expanders(child_group)
+    for _, child in ipairs(child_group) do
+        if child.kind ~= Block.EXPANDER then
+            return false
         end
     end
 
-    return self:has_child()
+    return #child_group > 0
 end
 
 -- TODO: Rather than using stuff like this, there should be an iterator function that iterates over children skipping expanders, and a way to get the #visible_children.
-function Block:get_last_visible_child_i(group)
-    local i = #group
+function Block:get_last_visible_child_i(child_group)
+    local i = #child_group
 
-    while i > 0 and group[i].kind == Block.EXPANDER do
+    while i > 0 and child_group[i].kind == Block.EXPANDER do
         i = i - 1
     end
 
@@ -272,7 +313,7 @@ function Block:update_tree(x, y, in_vertical_group)
     end
 
     local has_child = self:has_child()
-    local only_has_expanders = self:only_has_expanders()
+    local only_has_expanders = self:only_has_expanders(self.child_groups[1])
 
     x = x + Block.PADDING
 
@@ -411,11 +452,13 @@ function Block:draw(cursor_block, camera, depth)
         text_y = text_y - Block.PADDING
     end
 
-    Graphics.draw_text(text, self.x, text_y, camera)
-
     for group_i, child_group in ipairs(self.child_groups) do
         local kind_group = self.kind.GROUPS[group_i]
         local last_visible_child_i = self:get_last_visible_child_i(child_group)
+
+        if group_i == 1 and not kind_group.IS_TEXT_INFIX then
+            Graphics.draw_text(text, self.x, text_y, camera)
+        end
 
         for i, child in ipairs(child_group) do
             child:draw(cursor_block, camera, depth + 1)
@@ -441,16 +484,17 @@ function Block:expand_group(group_i, i)
     i = i or #self.child_groups[group_i]
 
     local children = self.child_groups[group_i]
-    local pins = self.kind.GROUPS[group_i].PINS
+    local default_children = self.kind.GROUPS[group_i].DEFAULT_CHILDREN
+    local default_child = default_children[#default_children]
 
-    local pin = Block:new(Block.PIN, self)
-    pin.pin_kind = pins[#pins]
+    local child = Block:new(default_child.block_kind, self)
+    child.pin_kind = default_child.pin_kind
 
     local pin_i = i + 1
-    table.insert(children, pin_i, pin)
+    table.insert(children, pin_i, child)
 
     local expander = Block:new(Block.EXPANDER, self)
-    pin.pin_kind = pins[#pins]
+    expander.pin_kind = default_child.pin_kind
 
     table.insert(children, pin_i + 1, expander)
 
