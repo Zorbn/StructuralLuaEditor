@@ -194,7 +194,7 @@ local function update_cursor_child_indices()
     end
 end
 
-local function try_move_cursor_up_local()
+local function try_cursor_ascend()
     if cursor_block.parent then
         if cursor_group_i > 1 then
             local group = cursor_block.parent.child_groups[cursor_group_i - 1]
@@ -210,7 +210,7 @@ local function try_move_cursor_up_local()
     return false
 end
 
-local function try_move_cursor_down_local()
+local function try_cursor_descend()
     if cursor_block.parent and
         cursor_group_i < #cursor_block.parent.child_groups then
 
@@ -226,7 +226,7 @@ local function try_move_cursor_down_local()
     return false
 end
 
-local function try_move_cursor_left_local()
+local function try_cursor_previous()
     if cursor_block.parent then
         if cursor_i > 1 then
             cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i - 1]
@@ -242,10 +242,10 @@ local function try_move_cursor_left_local()
         end
     end
 
-    return false
+    return try_cursor_ascend()
 end
 
-local function try_move_cursor_right_local()
+local function try_cursor_next()
     if cursor_block.parent then
         local group = cursor_block.parent.child_groups[cursor_group_i]
 
@@ -262,39 +262,39 @@ local function try_move_cursor_right_local()
         end
     end
 
-    return false
+    return try_cursor_ascend()
 end
 
 local function try_move_cursor_up()
-    if cursor_block.parent and cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
-        return try_move_cursor_left_local()
+    if not cursor_block.parent or cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
+        return try_cursor_previous()
     end
 
-    return try_move_cursor_up_local()
+    return try_cursor_ascend()
 end
 
 local function try_move_cursor_down()
-    if cursor_block.parent and cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
-        return try_move_cursor_right_local()
+    if not cursor_block.parent or cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
+        return try_cursor_next()
     end
 
-    return try_move_cursor_down_local()
+    return try_cursor_descend()
 end
 
 local function try_move_cursor_left()
-    if cursor_block.parent and cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
-        return try_move_cursor_up_local()
+    if not cursor_block.parent or cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
+        return try_cursor_ascend()
     end
 
-    return try_move_cursor_left_local()
+    return try_cursor_previous()
 end
 
 local function try_move_cursor_right()
-    if cursor_block.parent and cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
-        return try_move_cursor_down_local()
+    if not cursor_block.parent or cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
+        return try_cursor_descend()
     end
 
-    return try_move_cursor_right_local()
+    return try_cursor_next()
 end
 
 local function try_fill_pin(search_text, do_insert)
@@ -406,13 +406,9 @@ local function update_cursor()
     elseif is_key_pressed_or_repeat("down") or is_key_pressed_or_repeat("d") or is_key_pressed_or_repeat("k") then
         try_move_cursor_down()
     elseif is_key_pressed_or_repeat("left") or is_key_pressed_or_repeat("s") or is_key_pressed_or_repeat("j") then
-        if not try_move_cursor_left() then
-            try_move_cursor_up()
-        end
+        try_move_cursor_left()
     elseif is_key_pressed_or_repeat("right") or is_key_pressed_or_repeat("f") or is_key_pressed_or_repeat("l") then
-        if not try_move_cursor_right() then
-            try_move_cursor_down()
-        end
+        try_move_cursor_right()
     end
 
     if lyte.is_key_pressed("space") then

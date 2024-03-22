@@ -281,7 +281,7 @@ function Block:update_tree(x, y)
         local kind_group = self.kind.GROUPS[group_i]
 
         if group_i > 1 then
-            y = y + Block.LINE_WIDTH
+            y = y + Block.LINE_WIDTH + Block.PADDING
         elseif not kind_group.IS_TEXT_INFIX then
             x = x + text_width + Block.PADDING
             start_x = x
@@ -378,7 +378,7 @@ function Block:draw(cursor_block, camera, depth)
 
         if group_i < #self.child_groups and #self.child_groups[group_i + 1] > 0 then
             Graphics.set_color(Block.get_depth_color(depth - 1))
-            lyte.draw_rect(self.x, self.child_groups[group_i + 1][1].y - Block.PADDING - Block.LINE_WIDTH,
+            lyte.draw_rect(self.x, self.child_groups[group_i + 1][1].y - Block.PADDING * 2 - Block.LINE_WIDTH,
                 self.width - Block.PADDING * 2, Block.LINE_WIDTH)
         end
     end
