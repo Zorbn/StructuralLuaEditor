@@ -28,16 +28,6 @@ Block.PIN = {
     },
 }
 
-Block.EXPANDER = {
-    PIN_KIND = nil,
-    GROUPS = {
-        new_block_group({
-            TEXT = ";",
-            DEFAULT_CHILDREN = {},
-        }),
-    },
-}
-
 local function new_default_child(block_kind)
     return {
         block_kind = block_kind,
@@ -58,7 +48,7 @@ Block.DO = {
         new_block_group({
             TEXT = "do",
             IS_VERTICAL = true,
-            HAS_EXPANDER = true,
+            IS_GROWABLE = true,
             DEFAULT_CHILDREN = {
                 new_default_child_pin(PinKind.STATEMENT),
             },
@@ -71,7 +61,7 @@ Block.FUNCTION = {
     GROUPS = {
         new_block_group({
             TEXT = "fn",
-            HAS_EXPANDER = true,
+            IS_GROWABLE = true,
             DEFAULT_CHILDREN = {
                 new_default_child_pin(PinKind.IDENTIFIER),
                 new_default_child_pin(PinKind.IDENTIFIER),
@@ -80,7 +70,7 @@ Block.FUNCTION = {
         new_block_group({
             TEXT = "",
             IS_VERTICAL = true,
-            HAS_EXPANDER = true,
+            IS_GROWABLE = true,
             DEFAULT_CHILDREN = {
                 new_default_child_pin(PinKind.STATEMENT),
             },
@@ -93,7 +83,7 @@ Block.LAMBDA_FUNCTION = {
     GROUPS = {
         new_block_group({
             TEXT = "fn",
-            HAS_EXPANDER = true,
+            IS_GROWABLE = true,
             DEFAULT_CHILDREN = {
                 new_default_child_pin(PinKind.IDENTIFIER),
             },
@@ -101,7 +91,7 @@ Block.LAMBDA_FUNCTION = {
         new_block_group({
             TEXT = "",
             IS_VERTICAL = true,
-            HAS_EXPANDER = true,
+            IS_GROWABLE = true,
             DEFAULT_CHILDREN = {
                 new_default_child_pin(PinKind.STATEMENT),
             },
@@ -128,7 +118,7 @@ Block.IF = {
         new_block_group({
             TEXT = "if",
             IS_VERTICAL = true,
-            HAS_EXPANDER = true,
+            IS_GROWABLE = true,
             DEFAULT_CHILDREN = {
                 new_default_child(Block.CASE),
             },
@@ -136,9 +126,10 @@ Block.IF = {
         new_block_group({
             TEXT = "",
             IS_VERTICAL = true,
-            HAS_EXPANDER = true,
+            IS_GROWABLE = false,
             DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.STATEMENT),
+                -- new_default_child_pin(PinKind.STATEMENT),
+                new_default_child(Block.CASE),
             },
         }),
     },
@@ -164,7 +155,7 @@ Block.ADD = {
         new_block_group({
             TEXT = "+",
             IS_TEXT_INFIX = true,
-            HAS_EXPANDER = true,
+            IS_GROWABLE = true,
             DEFAULT_CHILDREN = {
                 new_default_child_pin(PinKind.EXPRESSION),
                 new_default_child_pin(PinKind.EXPRESSION),
@@ -179,7 +170,7 @@ Block.CALL = {
     GROUPS = {
         new_block_group({
             TEXT = "call",
-            HAS_EXPANDER = true,
+            IS_GROWABLE = true,
             DEFAULT_CHILDREN = {
                 new_default_child_pin(PinKind.EXPRESSION),
                 new_default_child_pin(PinKind.EXPRESSION),
@@ -237,10 +228,6 @@ function Block:new(kind, parent)
         for i, default_child in ipairs(group.DEFAULT_CHILDREN) do
             local block_kind = default_child.block_kind
 
-            if group.HAS_EXPANDER and i == #group.DEFAULT_CHILDREN then
-                block_kind = Block.EXPANDER
-            end
-
             block.child_groups[group_i][i] = Block:new(block_kind, block)
             block.child_groups[group_i][i].pin_kind = default_child.pin_kind
         end
@@ -258,36 +245,11 @@ function Block:update_text_size(camera)
     self.text_height = camera:get_text_height(self.text)
 end
 
-function Block:needs_trailing_padding(group, i)
-    return self.kind ~= Block.EXPANDER and (i >= #group or group[i + 1].kind ~= Block.EXPANDER)
-end
-
 function Block:has_child()
     return self.child_groups[1] and self.child_groups[1][1]
 end
 
-function Block:only_has_expanders(child_group)
-    for _, child in ipairs(child_group) do
-        if child.kind ~= Block.EXPANDER then
-            return false
-        end
-    end
-
-    return #child_group > 0
-end
-
--- TODO: Rather than using stuff like this, there should be an iterator function that iterates over children skipping expanders, and a way to get the #visible_children.
-function Block:get_last_visible_child_i(child_group)
-    local i = #child_group
-
-    while i > 0 and child_group[i].kind == Block.EXPANDER do
-        i = i - 1
-    end
-
-    return i
-end
-
-function Block:update_tree(x, y, in_vertical_group)
+function Block:update_tree(x, y)
     self.x = x
     self.y = y
 
@@ -300,20 +262,7 @@ function Block:update_tree(x, y, in_vertical_group)
         text_height = self.kind.GROUPS[1].TEXT_HEIGHT
     end
 
-    if self.kind == Block.EXPANDER then
-        if in_vertical_group then
-            self.width = text_height
-            self.height = Block.PADDING
-        else
-            self.width = Block.PADDING
-            self.height = text_height
-        end
-
-        return
-    end
-
     local has_child = self:has_child()
-    local only_has_expanders = self:only_has_expanders(self.child_groups[1])
 
     x = x + Block.PADDING
 
@@ -321,7 +270,7 @@ function Block:update_tree(x, y, in_vertical_group)
         y = y + Block.PADDING
     end
 
-    if not has_child or only_has_expanders then
+    if not has_child then
         y = y + text_height
     end
 
@@ -339,31 +288,22 @@ function Block:update_tree(x, y, in_vertical_group)
         end
 
         if kind_group.IS_VERTICAL then
-            for i, child in ipairs(child_group) do
-                child:update_tree(x, y, true)
+            for _, child in ipairs(child_group) do
+                child:update_tree(x, y)
                 x = x + child.width + Block.PADDING
-                y = y + child.height
-
-                if child:needs_trailing_padding(child_group, i) then
-                    y = y + Block.PADDING
-                end
+                y = y + child.height + Block.PADDING
 
                 max_width = math.max(max_width, x - self.x)
                 x = start_x
             end
         else
             local max_height = 0
-            local last_visible_child_i = self:get_last_visible_child_i(child_group)
 
             for i, child in ipairs(child_group) do
-                child:update_tree(x, y, false)
-                x = x + child.width
+                child:update_tree(x, y)
+                x = x + child.width + Block.PADDING
 
-                if child:needs_trailing_padding(child_group, i) then
-                    x = x + Block.PADDING
-                end
-
-                if i < last_visible_child_i and kind_group.IS_TEXT_INFIX and child.kind ~= Block.EXPANDER then
+                if i < #child_group and kind_group.IS_TEXT_INFIX then
                     x = x + text_width + Block.PADDING
                 end
 
@@ -374,10 +314,6 @@ function Block:update_tree(x, y, in_vertical_group)
             x = start_x
             y = y + max_height
         end
-    end
-
-    if only_has_expanders then
-        y = y + Block.PADDING
     end
 
     self.width = max_width
@@ -393,33 +329,6 @@ function Block.get_depth_color(depth)
 end
 
 function Block:draw(cursor_block, camera, depth)
-    if self.kind == Block.EXPANDER then
-        if self == cursor_block then
-            Graphics.set_color(Theme.CURSOR_COLOR)
-
-            local x = self.x - Block.PADDING
-            local y = self.y - Block.PADDING
-            local width = self.width
-            local height = self.height
-
-            if width < height then
-                x = x + Block.LINE_WIDTH / 2
-                width = Block.LINE_WIDTH
-                y = y - Block.LINE_WIDTH
-                height = height + Block.LINE_WIDTH * 2
-            else
-                y = y + Block.LINE_WIDTH / 2
-                height = Block.LINE_WIDTH
-                x = x - Block.LINE_WIDTH
-                width = width + Block.LINE_WIDTH * 2
-            end
-
-            lyte.draw_rect(x, y, width, height)
-        end
-
-        return
-    end
-
     if self == cursor_block then
         Graphics.set_color(Theme.CURSOR_COLOR)
 
@@ -427,7 +336,7 @@ function Block:draw(cursor_block, camera, depth)
             self.height + Block.LINE_WIDTH * 2)
     end
 
-    if self.kind == Block.PIN or self.kind == Block.EXPANDER then
+    if self.kind == Block.PIN then
         Graphics.set_color(Theme.PIN_COLOR)
     else
         Graphics.set_color(Block.get_depth_color(depth))
@@ -454,7 +363,6 @@ function Block:draw(cursor_block, camera, depth)
 
     for group_i, child_group in ipairs(self.child_groups) do
         local kind_group = self.kind.GROUPS[group_i]
-        local last_visible_child_i = self:get_last_visible_child_i(child_group)
 
         if group_i == 1 and not kind_group.IS_TEXT_INFIX then
             Graphics.draw_text(text, self.x, text_y, camera)
@@ -463,48 +371,20 @@ function Block:draw(cursor_block, camera, depth)
         for i, child in ipairs(child_group) do
             child:draw(cursor_block, camera, depth + 1)
 
-            if i < last_visible_child_i and kind_group.IS_TEXT_INFIX and child.kind ~= Block.EXPANDER then
+            if i < #child_group and kind_group.IS_TEXT_INFIX then
                 Graphics.draw_text(text, child.x + child.width, text_y, camera)
             end
         end
 
         if group_i < #self.child_groups and #self.child_groups[group_i + 1] > 0 then
             Graphics.set_color(Block.get_depth_color(depth - 1))
-            lyte.draw_rect(self.x, self.child_groups[group_i + 1][1].y - Block.PADDING * 1.5,
+            lyte.draw_rect(self.x, self.child_groups[group_i + 1][1].y - Block.PADDING - Block.LINE_WIDTH,
                 self.width - Block.PADDING * 2, Block.LINE_WIDTH)
         end
     end
 end
 
-function Block:expand_group(group_i, i)
-    if not self.kind.GROUPS[group_i].HAS_EXPANDER then
-        return
-    end
-
-    i = i or #self.child_groups[group_i]
-
-    local children = self.child_groups[group_i]
-    local default_children = self.kind.GROUPS[group_i].DEFAULT_CHILDREN
-    local default_child = default_children[#default_children]
-
-    local child = Block:new(default_child.block_kind, self)
-    child.pin_kind = default_child.pin_kind
-
-    local pin_i = i + 1
-    table.insert(children, pin_i, child)
-
-    local expander = Block:new(Block.EXPANDER, self)
-    expander.pin_kind = default_child.pin_kind
-
-    table.insert(children, pin_i + 1, expander)
-
-    return pin_i
-end
-
 function Block:save_pin(_)
-end
-
-function Block:save_expander(_)
 end
 
 function Block:save_do(data)
@@ -522,17 +402,15 @@ function Block:save_do(data)
 end
 
 function Block:save_block_list(data, group_i, first_i, seperator)
-    local last_i = #self.child_groups[group_i] - 1
+    local last_i = #self.child_groups[group_i]
 
     for i = first_i, #self.child_groups[group_i] do
         local child = self.child_groups[group_i][i]
 
-        if child.kind ~= Block.EXPANDER then
-            child:save(data)
+        child:save(data)
 
-            if i < last_i then
-                data:write(seperator)
-            end
+        if i < last_i then
+            data:write(seperator)
         end
     end
 end
@@ -611,7 +489,6 @@ end
 
 local BLOCK_SAVE_FUNCTIONS = {
     [Block.PIN] = Block.save_pin,
-    [Block.EXPANDER] = Block.save_expander,
     [Block.DO] = Block.save_do,
     [Block.FUNCTION] = Block.save_function,
     [Block.LAMBDA_FUNCTION] = Block.save_lambda_function,

@@ -340,20 +340,20 @@ local function try_fill_pin(search_text, do_insert)
 end
 
 local function try_delete()
-    if cursor_block.parent == nil or cursor_block.kind == Block.EXPANDER then
+    if cursor_block.parent == nil then
         return
     end
 
     if cursor_block.kind == Block.PIN and
-        cursor_block.parent.kind.GROUPS[cursor_group_i].HAS_EXPANDER and
+        cursor_block.parent.kind.GROUPS[cursor_group_i].IS_GROWABLE and
         cursor_i >= #cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN then
-        -- This is a pin created by expansion, so we can fully remove it and the expander after it.
+        -- This is a pin wasn't default, so we can fully remove it.
 
         local group = cursor_block.parent.child_groups[cursor_group_i]
         local delete_i = cursor_i
 
-        if cursor_i + 2 <= #group then
-            cursor_block = group[cursor_i + 2]
+        if cursor_i + 1 <= #group then
+            cursor_block = group[cursor_i + 1]
         elseif cursor_i > 1 then
             cursor_i = cursor_i - 1
             cursor_block = group[cursor_i]
@@ -361,7 +361,6 @@ local function try_delete()
             cursor_block = cursor_block.parent
         end
 
-        table.remove(group, delete_i)
         table.remove(group, delete_i)
     else
         local default_child_i = math.min(cursor_i, #cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN)
@@ -376,16 +375,6 @@ local function try_delete()
     root_block:update_tree(root_block.x, root_block.y)
 end
 
-local function try_expand()
-    if cursor_block.parent == nil then
-        return
-    end
-
-    cursor_i = cursor_block.parent:expand_group(cursor_group_i, cursor_i)
-    cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i]
-    root_block:update_tree(root_block.x, root_block.y)
-end
-
 local InteractionState = {
     CURSOR = 1,
     SEARCH = 2,
@@ -395,24 +384,6 @@ local InteractionState = {
 local interaction_state = InteractionState.CURSOR
 local search_text = ""
 local insert_text = ""
-
-local function move_cursor_skipping_expanders(move_function, do_skip)
-    if do_skip then
-        local did_move_succeed = true
-
-        while did_move_succeed do
-            did_move_succeed = move_function()
-
-            if cursor_block.kind ~= Block.EXPANDER then
-                break
-            end
-        end
-
-        return did_move_succeed
-    end
-
-    return move_function()
-end
 
 local function update_cursor()
     local is_control_held = lyte.is_key_down("left_control") or lyte.is_key_down("right_control")
@@ -430,36 +401,26 @@ local function update_cursor()
         return
     end
 
-    local do_skip_expanders = not is_shift_held
-
     if is_key_pressed_or_repeat("up") or is_key_pressed_or_repeat("e") or is_key_pressed_or_repeat("i") then
-        move_cursor_skipping_expanders(try_move_cursor_up, do_skip_expanders)
+        try_move_cursor_up()
     elseif is_key_pressed_or_repeat("down") or is_key_pressed_or_repeat("d") or is_key_pressed_or_repeat("k") then
-        move_cursor_skipping_expanders(try_move_cursor_down, do_skip_expanders)
+        try_move_cursor_down()
     elseif is_key_pressed_or_repeat("left") or is_key_pressed_or_repeat("s") or is_key_pressed_or_repeat("j") then
-        if not move_cursor_skipping_expanders(try_move_cursor_left, do_skip_expanders) then
-            move_cursor_skipping_expanders(try_move_cursor_up, do_skip_expanders)
+        if not try_move_cursor_left() then
+            try_move_cursor_up()
         end
     elseif is_key_pressed_or_repeat("right") or is_key_pressed_or_repeat("f") or is_key_pressed_or_repeat("l") then
-        if not move_cursor_skipping_expanders(try_move_cursor_right, do_skip_expanders) then
-            move_cursor_skipping_expanders(try_move_cursor_down, do_skip_expanders)
+        if not try_move_cursor_right() then
+            try_move_cursor_down()
         end
     end
 
     if lyte.is_key_pressed("space") then
-        if cursor_block.kind == Block.EXPANDER then
-            try_expand()
-        end
-
         interaction_state = InteractionState.SEARCH
         return
     end
 
     if lyte.is_key_pressed("enter") then
-        if cursor_block.kind == Block.EXPANDER then
-            try_expand()
-        end
-
         interaction_state = InteractionState.INSERT
         return
     end
