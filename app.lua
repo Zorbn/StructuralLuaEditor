@@ -196,13 +196,7 @@ end
 
 local function try_cursor_ascend()
     if cursor_block.parent then
-        if cursor_group_i > 1 then
-            local group = cursor_block.parent.child_groups[cursor_group_i - 1]
-            cursor_block = group[#group]
-        else
-            cursor_block = cursor_block.parent
-        end
-
+        cursor_block = cursor_block.parent
         update_cursor_child_indices()
         return true
     end
@@ -211,13 +205,9 @@ local function try_cursor_ascend()
 end
 
 local function try_cursor_descend()
-    if cursor_block.parent and
-        cursor_group_i < #cursor_block.parent.child_groups then
+    print("descent")
 
-        cursor_block = cursor_block.parent.child_groups[cursor_group_i + 1][1]
-        update_cursor_child_indices()
-        return true
-    elseif cursor_block.child_groups[1][1] then
+    if cursor_block.child_groups[1][1] then
         cursor_block = cursor_block.child_groups[1][1]
         update_cursor_child_indices()
         return true
