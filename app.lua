@@ -297,7 +297,7 @@ local function try_move_cursor_right()
     return try_cursor_next()
 end
 
-local function try_fill_pin(search_text, do_insert)
+local function try_fill_pin(search_text)
     if cursor_block.kind ~= Block.PIN then
         return
     end
@@ -309,34 +309,31 @@ local function try_fill_pin(search_text, do_insert)
     local block_kind_choices = PIN_BLOCKS[cursor_block.pin_kind]
 
     local chosen_block_kind = nil
-    if do_insert then
+    for _, block_kind in ipairs(block_kind_choices) do
+        if block_kind.GROUPS[1].TEXT == search_text then
+            chosen_block_kind = block_kind
+        end
+    end
+
+    if chosen_block_kind == nil then
         if cursor_block.pin_kind ~= PinKind.IDENTIFIER and cursor_block.pin_kind ~= PinKind.EXPRESSION then
             return false
         end
 
         chosen_block_kind = Block.IDENTIFIER
-    else
-        for _, block_kind in ipairs(block_kind_choices) do
-            if block_kind.GROUPS[1].TEXT == search_text then
-                chosen_block_kind = block_kind
-            end
-        end
     end
 
-    if chosen_block_kind ~= nil then
-        cursor_block.parent.child_groups[cursor_group_i][cursor_i] = Block:new(chosen_block_kind, cursor_block.parent)
-        cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i]
+    cursor_block.parent.child_groups[cursor_group_i][cursor_i] = Block:new(chosen_block_kind, cursor_block.parent)
+    cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i]
 
-        if do_insert then
-            cursor_block.text = search_text
-            cursor_block:update_text_size(camera)
-        end
-
-        root_block:update_tree(root_block.x, root_block.y)
-        return true
+    if chosen_block_kind == Block.IDENTIFIER then
+        cursor_block.text = search_text
+        cursor_block:update_text_size(camera)
     end
 
-    return false
+    root_block:update_tree(root_block.x, root_block.y)
+
+    return true
 end
 
 local function try_delete()
@@ -377,8 +374,7 @@ end
 
 local InteractionState = {
     CURSOR = 1,
-    SEARCH = 2,
-    INSERT = 3,
+    INSERT = 2,
 }
 
 local interaction_state = InteractionState.CURSOR
@@ -412,11 +408,6 @@ local function update_cursor()
     end
 
     if lyte.is_key_pressed("space") then
-        interaction_state = InteractionState.SEARCH
-        return
-    end
-
-    if lyte.is_key_pressed("enter") then
         interaction_state = InteractionState.INSERT
         return
     end
@@ -441,7 +432,7 @@ local function update_text_input(text, do_insert)
     end
 
     if lyte.is_key_pressed("enter") then
-        if try_fill_pin(text, do_insert) then
+        if try_fill_pin(text) then
             text = ""
             interaction_state = InteractionState.CURSOR
         end
@@ -485,9 +476,7 @@ function lyte.tick(dt, window_width, window_height)
 
     Graphics.set_color(Theme.TEXT_COLOR)
 
-    if interaction_state == InteractionState.SEARCH then
-        draw_text_input("Search: ", search_text)
-    elseif interaction_state == InteractionState.INSERT then
+    if interaction_state == InteractionState.INSERT then
         draw_text_input("Insert: ", insert_text)
     else
         lyte.set_font(Graphics.default_font)
