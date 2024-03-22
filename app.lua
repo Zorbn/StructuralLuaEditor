@@ -265,8 +265,12 @@ local function try_cursor_next()
     return try_cursor_ascend()
 end
 
+local function is_cursor_vertical()
+    return not cursor_block.parent or cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL
+end
+
 local function try_move_cursor_up()
-    if not cursor_block.parent or cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
+    if is_cursor_vertical() then
         return try_cursor_previous()
     end
 
@@ -274,7 +278,7 @@ local function try_move_cursor_up()
 end
 
 local function try_move_cursor_down()
-    if not cursor_block.parent or cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
+    if is_cursor_vertical() then
         return try_cursor_next()
     end
 
@@ -282,7 +286,7 @@ local function try_move_cursor_down()
 end
 
 local function try_move_cursor_left()
-    if not cursor_block.parent or cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
+    if is_cursor_vertical() then
         return try_cursor_ascend()
     end
 
@@ -290,23 +294,45 @@ local function try_move_cursor_left()
 end
 
 local function try_move_cursor_right()
-    if not cursor_block.parent or cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL then
+    if is_cursor_vertical() then
         return try_cursor_descend()
     end
 
     return try_cursor_next()
 end
 
-local function try_fill_pin(search_text)
-    if cursor_block.kind ~= Block.PIN then
+local Direction = {
+    UP = 1,
+    DOWN = 2,
+    LEFT = 3,
+    RIGHT = 4,
+}
+
+local function try_insert(search_text, direction)
+    if not cursor_block.parent then
         return
     end
 
-    if cursor_block.parent == nil then
-        return
+    local target_i = cursor_i
+
+    if is_cursor_vertical() then
+        if direction == Direction.DOWN then
+            target_i = target_i + 1
+        elseif direction and direction ~= Direction.UP then
+            return
+        end
+    else
+        if direction == Direction.RIGHT then
+            target_i = target_i + 1
+        elseif direction and direction ~= Direction.LEFT then
+            return
+        end
     end
 
-    local block_kind_choices = PIN_BLOCKS[cursor_block.pin_kind]
+    local default_children = cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN
+    local pin_kind_i = math.min(target_i, #default_children)
+    local pin_kind = default_children[pin_kind_i].pin_kind
+    local block_kind_choices = PIN_BLOCKS[pin_kind]
 
     local chosen_block_kind = nil
     for _, block_kind in ipairs(block_kind_choices) do
@@ -315,16 +341,27 @@ local function try_fill_pin(search_text)
         end
     end
 
-    if chosen_block_kind == nil then
-        if cursor_block.pin_kind ~= PinKind.IDENTIFIER and cursor_block.pin_kind ~= PinKind.EXPRESSION then
+    if not chosen_block_kind then
+        if pin_kind ~= PinKind.IDENTIFIER and pin_kind ~= PinKind.EXPRESSION then
             return false
         end
 
         chosen_block_kind = Block.IDENTIFIER
     end
 
-    cursor_block.parent.child_groups[cursor_group_i][cursor_i] = Block:new(chosen_block_kind, cursor_block.parent)
-    cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i]
+    local cursor_group = cursor_block.parent.child_groups[cursor_group_i]
+    local do_replace = not direction
+
+    local block = Block:new(chosen_block_kind, cursor_block.parent)
+
+    if do_replace then
+        cursor_group[target_i] = block
+    else
+        table.insert(cursor_group, target_i, block)
+    end
+
+    cursor_i = target_i
+    cursor_block = cursor_group[cursor_i]
 
     if chosen_block_kind == Block.IDENTIFIER then
         cursor_block.text = search_text
@@ -337,13 +374,13 @@ local function try_fill_pin(search_text)
 end
 
 local function try_delete()
-    if cursor_block.parent == nil then
+    if not cursor_block.parent then
         return
     end
 
-    if cursor_block.kind == Block.PIN and
-        cursor_block.parent.kind.GROUPS[cursor_group_i].IS_GROWABLE and
-        cursor_i >= #cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN then
+    local default_children = cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN
+
+    if cursor_block.parent.kind.GROUPS[cursor_group_i].IS_GROWABLE and cursor_i > 1 then
         -- This is a pin wasn't default, so we can fully remove it.
 
         local group = cursor_block.parent.child_groups[cursor_group_i]
@@ -360,8 +397,8 @@ local function try_delete()
 
         table.remove(group, delete_i)
     else
-        local default_child_i = math.min(cursor_i, #cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN)
-        local default_child = cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN[default_child_i]
+        local default_child_i = math.min(cursor_i, #default_children)
+        local default_child = default_children[default_child_i]
 
         local child = Block:new(default_child.block_kind, cursor_block.parent)
         child.pin_kind = default_child.pin_kind
@@ -378,8 +415,13 @@ local InteractionState = {
 }
 
 local interaction_state = InteractionState.CURSOR
-local search_text = ""
 local insert_text = ""
+local insert_direction = nil
+
+local function start_insert_mode(direction)
+    interaction_state = InteractionState.INSERT
+    insert_direction = direction
+end
 
 local function update_cursor()
     local is_control_held = lyte.is_key_down("left_control") or lyte.is_key_down("right_control")
@@ -397,18 +439,32 @@ local function update_cursor()
         return
     end
 
-    if is_key_pressed_or_repeat("up") or is_key_pressed_or_repeat("e") or is_key_pressed_or_repeat("i") then
+    if is_key_pressed_or_repeat("e") then
         try_move_cursor_up()
-    elseif is_key_pressed_or_repeat("down") or is_key_pressed_or_repeat("d") or is_key_pressed_or_repeat("k") then
+    elseif is_key_pressed_or_repeat("d") then
         try_move_cursor_down()
-    elseif is_key_pressed_or_repeat("left") or is_key_pressed_or_repeat("s") or is_key_pressed_or_repeat("j") then
+    elseif is_key_pressed_or_repeat("s") then
         try_move_cursor_left()
-    elseif is_key_pressed_or_repeat("right") or is_key_pressed_or_repeat("f") or is_key_pressed_or_repeat("l") then
+    elseif is_key_pressed_or_repeat("f") then
         try_move_cursor_right()
     end
 
+    if is_key_pressed_or_repeat("i") then
+        start_insert_mode(Direction.UP)
+        return
+    elseif is_key_pressed_or_repeat("k") then
+        start_insert_mode(Direction.DOWN)
+        return
+    elseif is_key_pressed_or_repeat("j") then
+        start_insert_mode(Direction.LEFT)
+        return
+    elseif is_key_pressed_or_repeat("l") then
+        start_insert_mode(Direction.RIGHT)
+        return
+    end
+
     if lyte.is_key_pressed("space") then
-        interaction_state = InteractionState.INSERT
+        start_insert_mode(nil)
         return
     end
 
@@ -417,7 +473,7 @@ local function update_cursor()
     end
 end
 
-local function update_text_input(text, do_insert)
+local function update_text_input(text)
     text = text .. lyte.get_textinput()
 
     if is_key_pressed_or_repeat("backspace") then
@@ -432,7 +488,7 @@ local function update_text_input(text, do_insert)
     end
 
     if lyte.is_key_pressed("enter") then
-        if try_fill_pin(text) then
+        if try_insert(text, insert_direction) then
             text = ""
             interaction_state = InteractionState.CURSOR
         end
@@ -453,10 +509,8 @@ local function draw_text_input(prefix, text)
 end
 
 function lyte.tick(dt, window_width, window_height)
-    if interaction_state == InteractionState.SEARCH then
-        search_text = update_text_input(search_text, false)
-    elseif interaction_state == InteractionState.INSERT then
-        insert_text = update_text_input(insert_text, true)
+    if interaction_state == InteractionState.INSERT then
+        insert_text = update_text_input(insert_text)
     else
         update_cursor()
     end
