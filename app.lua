@@ -175,7 +175,7 @@ local function update_cursor_child_indices()
         return
     end
 
-    for i, child in ipairs(cursor_block.children) do
+    for i, child in ipairs(cursor_block.parent.children) do
         if child == cursor_block then
             cursor_i = i
 
@@ -208,8 +208,8 @@ local function try_cursor_previous()
     if cursor_block.parent then
         if cursor_i > 1 then
             cursor_block = cursor_block.parent.children[cursor_i - 1]
-
             update_cursor_child_indices()
+
             return true
         end
     end
@@ -221,8 +221,8 @@ local function try_cursor_next()
     if cursor_block.parent then
         if cursor_i < #cursor_block.parent.children then
             cursor_block = cursor_block.parent.children[cursor_i + 1]
-
             update_cursor_child_indices()
+
             return true
         end
     end
@@ -294,6 +294,10 @@ local function get_insert_target_i(direction)
 end
 
 local function get_insert_default_child(target_i)
+    if not cursor_block.parent then
+        return nil
+    end
+
     local default_children = cursor_block.parent.kind.DEFAULT_CHILDREN
     local default_child_i = math.min(target_i, #default_children)
 
@@ -311,6 +315,10 @@ local function try_insert(search_text, direction)
     end
 
     local default_child = get_insert_default_child(target_i)
+    if not default_child then
+        return
+    end
+
     local pin_kind = default_child.pin_kind
     local block_kind_choices = PIN_BLOCKS[pin_kind]
 
@@ -410,6 +418,10 @@ local function start_insert_mode(direction)
     end
 
     local default_child = get_insert_default_child(target_i)
+    if not default_child then
+        interaction_state = InteractionState.CURSOR
+        return
+    end
 
     if default_child.block_kind ~= Block.PIN then
         try_insert("", insert_direction)
