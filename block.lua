@@ -346,7 +346,11 @@ function Block.get_depth_color(depth)
     return Theme.ODD_COLOR
 end
 
-function Block:draw(cursor_block, camera, depth)
+function Block:draw(cursor_block, camera, window_height, depth)
+    if self.y * camera.zoom > camera.y + window_height or (self.y + self.height) * camera.zoom < camera.y then
+        return
+    end
+
     if self == cursor_block then
         Graphics.set_color(Theme.CURSOR_COLOR)
 
@@ -383,7 +387,7 @@ function Block:draw(cursor_block, camera, depth)
     end
 
     for i, child in ipairs(self.children) do
-        child:draw(cursor_block, camera, depth + 1)
+        child:draw(cursor_block, camera, window_height, depth + 1)
 
         if i < #self.children and self.kind.IS_TEXT_INFIX then
             Graphics.draw_text(text, child.x + child.width, text_y, camera)

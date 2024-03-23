@@ -649,7 +649,7 @@ function lyte.tick(dt, window_width, window_height)
 
     lyte.cls(Theme.BACKGROUND_COLOR.R, Theme.BACKGROUND_COLOR.G, Theme.BACKGROUND_COLOR.B, 1)
 
-    root_block:draw(cursor_block, camera, 0)
+    root_block:draw(cursor_block, camera, window_height, 0)
 
     lyte.pop_matrix()
 
