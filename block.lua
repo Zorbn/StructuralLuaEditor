@@ -101,7 +101,7 @@ Block.LAMBDA_FUNCTION = new_block({
 })
 
 Block.CASE = new_block({
-    PIN_KIND = PinKind.STATEMENT,
+    PIN_KIND = nil,
     TEXT = "case",
     IS_VERTICAL = true,
     IS_GROWABLE = true,
@@ -226,6 +226,10 @@ function Block:new(kind, parent)
     self.__index = self
 
     return block
+end
+
+function Block:can_swap_with(other)
+    return self.kind == other.kind or (self.pin_kind ~= nil and self.pin_kind == other.pin_kind)
 end
 
 function Block:update_text_size(camera)

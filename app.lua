@@ -406,6 +406,54 @@ local function try_delete()
     root_block:update_tree(root_block.x, root_block.y)
 end
 
+local function get_swap_target_i(direction)
+    local target_i = cursor_i
+
+    if is_cursor_vertical() then
+        if direction == Direction.DOWN then
+            target_i = target_i + 1
+        elseif direction == Direction.UP then
+            target_i = target_i - 1
+        else
+            return nil
+        end
+    else
+        if direction == Direction.RIGHT then
+            target_i = target_i + 1
+        elseif direction == Direction.LEFT then
+            target_i = target_i - 1
+        else
+            return nil
+        end
+    end
+
+    return target_i
+end
+
+local function try_swap(direction)
+    if not cursor_block.parent then
+        return
+    end
+
+    local target_i = get_swap_target_i(direction)
+    if not target_i then
+        return
+    end
+
+    target_i = math.min(target_i, #cursor_block.parent.children)
+    target_i = math.max(target_i, 1)
+
+    local other = cursor_block.parent.children[target_i]
+
+    if cursor_block:can_swap_with(other) then
+        cursor_block.parent.children[cursor_i] = other
+        cursor_block.parent.children[target_i] = cursor_block
+        cursor_i = target_i
+
+        root_block:update_tree(root_block.x, root_block.y)
+    end
+end
+
 local InteractionState = {
     CURSOR = 1,
     INSERT = 2,
@@ -453,14 +501,26 @@ local function update_cursor()
         return
     end
 
-    if is_key_pressed_or_repeat("e") then
-        try_move_cursor_up()
-    elseif is_key_pressed_or_repeat("d") then
-        try_move_cursor_down()
-    elseif is_key_pressed_or_repeat("s") then
-        try_move_cursor_left()
-    elseif is_key_pressed_or_repeat("f") then
-        try_move_cursor_right()
+    if is_shift_held then
+        if is_key_pressed_or_repeat("e") then
+            try_swap(Direction.UP)
+        elseif is_key_pressed_or_repeat("d") then
+            try_swap(Direction.DOWN)
+        elseif is_key_pressed_or_repeat("s") then
+            try_swap(Direction.LEFT)
+        elseif is_key_pressed_or_repeat("f") then
+            try_swap(Direction.RIGHT)
+        end
+    else
+        if is_key_pressed_or_repeat("e") then
+            try_move_cursor_up()
+        elseif is_key_pressed_or_repeat("d") then
+            try_move_cursor_down()
+        elseif is_key_pressed_or_repeat("s") then
+            try_move_cursor_left()
+        elseif is_key_pressed_or_repeat("f") then
+            try_move_cursor_right()
+        end
     end
 
     if is_key_pressed_or_repeat("i") then
@@ -519,7 +579,7 @@ local function draw_text_input(prefix, text)
     local display_text_height = lyte.get_text_height(display_text)
     lyte.draw_text(display_text, 10, 0)
     Graphics.set_color(Theme.CURSOR_COLOR)
-    lyte.draw_rect(display_text_width + 10, 5, 5, display_text_height)
+    lyte.draw_rect(display_text_width + 10, 5, Block.LINE_WIDTH, display_text_height)
 end
 
 function lyte.tick(dt, window_width, window_height)
