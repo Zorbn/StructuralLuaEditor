@@ -304,13 +304,21 @@ local function get_insert_default_child(target_i)
     return default_children[default_child_i]
 end
 
-local function try_insert(search_text, direction)
-    if not cursor_block.parent then
-        return
+local function is_insert_target_valid(direction, target_i)
+    if not cursor_block.parent or (direction and not cursor_block.parent.kind.IS_GROWABLE) then
+        return false
     end
 
+    if direction and target_i < #cursor_block.parent.kind.DEFAULT_CHILDREN then
+        return false
+    end
+
+    return true
+end
+
+local function try_insert(search_text, direction)
     local target_i = get_insert_target_i(direction)
-    if not target_i then
+    if not target_i or not is_insert_target_valid(direction, target_i) then
         return
     end
 
@@ -412,7 +420,7 @@ local function start_insert_mode(direction)
     insert_direction = direction
 
     local target_i = get_insert_target_i(insert_direction)
-    if not target_i then
+    if not target_i or not is_insert_target_valid(direction, target_i) then
         interaction_state = InteractionState.CURSOR
         return
     end

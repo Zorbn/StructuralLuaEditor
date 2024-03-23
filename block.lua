@@ -103,6 +103,8 @@ Block.LAMBDA_FUNCTION = new_block({
 Block.CASE = new_block({
     PIN_KIND = PinKind.STATEMENT,
     TEXT = "case",
+    IS_VERTICAL = true,
+    IS_GROWABLE = true,
     DEFAULT_CHILDREN = {
         new_default_child_pin(PinKind.EXPRESSION),
         new_default_child_pin(PinKind.STATEMENT),
@@ -123,6 +125,7 @@ Block.ELSE_CASE = new_block({
     PIN_KIND = nil,
     TEXT = "else",
     IS_VERTICAL = true,
+    IS_GROWABLE = true,
     DEFAULT_CHILDREN = {
         new_default_child_pin(PinKind.STATEMENT),
     },
