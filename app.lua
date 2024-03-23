@@ -203,7 +203,7 @@ local function try_cursor_ascend()
 end
 
 local function try_cursor_descend()
-    if cursor_block.children[1] then
+    if cursor_block.children and cursor_block.children[1] then
         cursor_block = cursor_block.children[1]
         update_cursor_child_indices()
         return true

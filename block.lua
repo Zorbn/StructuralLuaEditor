@@ -205,18 +205,21 @@ function Block:new(kind, parent)
         pin_kind = kind.PIN_KIND,
         kind = kind,
         parent = parent,
-        children = {},
         x = 0,
         y = 0,
         width = 0,
         height = 0,
     }
 
-    for i, default_child in ipairs(kind.DEFAULT_CHILDREN) do
-        local block_kind = default_child.block_kind
+    if #kind.DEFAULT_CHILDREN > 0 then
+        block.children = {}
 
-        block.children[i] = Block:new(block_kind, block)
-        block.children[i].pin_kind = default_child.pin_kind
+        for i, default_child in ipairs(kind.DEFAULT_CHILDREN) do
+            local block_kind = default_child.block_kind
+
+            block.children[i] = Block:new(block_kind, block)
+            block.children[i].pin_kind = default_child.pin_kind
+        end
     end
 
     setmetatable(block, self)
@@ -250,13 +253,11 @@ function Block:get_text_height()
 end
 
 -- Deep copy.
--- TODO: Update to not always have text* fields.
 function Block:copy()
     local copy_block = {
         pin_kind = self.pin_kind,
         kind = self.kind,
         parent = self.parent,
-        children = {},
         x = self.x,
         y = self.y,
         width = self.width,
@@ -278,8 +279,12 @@ function Block:copy()
     setmetatable(copy_block, Block)
     Block.__index = Block
 
-    for i, child in ipairs(self.children) do
-        copy_block.children[i] = child:copy()
+    if self.children then
+        copy_block.children = {}
+
+        for i, child in ipairs(self.children) do
+            copy_block.children[i] = child:copy()
+        end
     end
 
     return copy_block
@@ -290,6 +295,10 @@ function Block:can_swap_with(other)
 end
 
 function Block:contains_non_pin()
+    if not self.children then
+        return false
+    end
+
     for _, child in ipairs(self.children) do
         if child.kind ~= Block.PIN then
             return true
@@ -309,7 +318,7 @@ function Block:update_tree(x, y)
     self.x = x
     self.y = y
 
-    local has_child = #self.children > 0
+    local has_child = self.children and #self.children > 0
 
     x = x + Block.PADDING
 
@@ -329,26 +338,30 @@ function Block:update_tree(x, y)
     local max_width = 0
 
     if self.kind.IS_VERTICAL then
-        for _, child in ipairs(self.children) do
-            child:update_tree(x, y)
-            x = x + child.width + Block.PADDING
-            y = y + child.height + Block.PADDING
+        if has_child then
+            for _, child in ipairs(self.children) do
+                child:update_tree(x, y)
+                x = x + child.width + Block.PADDING
+                y = y + child.height + Block.PADDING
 
-            max_width = math.max(max_width, x - self.x)
-            x = start_x
+                max_width = math.max(max_width, x - self.x)
+                x = start_x
+            end
         end
     else
         local max_height = 0
 
-        for i, child in ipairs(self.children) do
-            child:update_tree(x, y)
-            x = x + child.width + Block.PADDING
+        if has_child then
+            for i, child in ipairs(self.children) do
+                child:update_tree(x, y)
+                x = x + child.width + Block.PADDING
 
-            if i < #self.children and self.kind.IS_TEXT_INFIX then
-                x = x + self:get_text_width() + Block.PADDING
+                if i < #self.children and self.kind.IS_TEXT_INFIX then
+                    x = x + self:get_text_width() + Block.PADDING
+                end
+
+                max_height = math.max(max_height, child.height + Block.PADDING)
             end
-
-            max_height = math.max(max_height, child.height + Block.PADDING)
         end
 
         max_width = math.max(max_width, x - self.x)
@@ -387,7 +400,7 @@ function Block:draw(cursor_block, camera, window_height, depth)
     Graphics.set_color(Theme.TEXT_COLOR)
 
     local text_y = self.y - Block.PADDING / 2
-    local has_child = #self.children > 0
+    local has_child = self.children and #self.children > 0
 
     if not has_child then
         text_y = text_y - Block.PADDING
@@ -395,6 +408,10 @@ function Block:draw(cursor_block, camera, window_height, depth)
 
     if not self.kind.IS_TEXT_INFIX then
         Graphics.draw_text(self:get_text(), self.x, text_y, camera)
+    end
+
+    if not has_child then
+        return
     end
 
     -- if self.y * camera.zoom > camera.y + window_height or (self.y + self.height) * camera.zoom < camera.y then
