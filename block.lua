@@ -410,47 +410,83 @@ function Block:save_block_list(data, first_i, seperator)
     end
 end
 
+function Block:save_statement_list(data)
+    for _, child in ipairs(self.children) do
+        child:save(data)
+    end
+end
+
+function Block:save_function_header(data)
+    data:write("function ")
+    self.children[1]:save(data)
+    data:write("(")
+    self:save_block_list(data, 2, ", ")
+    data:writeln(")")
+end
+
 function Block:save_function(data, is_lambda)
-    error("saving function not reimplemented yet")
---     data:write("function ")
---
---     if not is_lambda then
---         self.child_groups[1][1]:save(data)
---     end
---
---     data:write("(")
---
---     local first_i = is_lambda and 1 or 2
---     self:save_block_list(data, first_i, ", ")
---
---     data:writeln(")")
---     data:indent()
---
---     for _, child in ipairs(self.child_groups[2]) do
---         child:save(data)
---     end
---
---     data:unindent()
---     data:writeln("end")
+    self.children[1]:save(data)
+    data:indent()
+    self.children[2]:save(data)
+    data:unindent()
+    data:writeln("end")
+end
+
+function Block:save_lambda_function_header(data)
+    data:write("function ")
+    data:write("(")
+    self:save_block_list(data, 1, ", ")
+    data:writeln(")")
 end
 
 function Block:save_lambda_function(data)
-    self:save_function(data, true)
+    self.children[1]:save(data)
+    data:indent()
+    self.children[2]:save(data)
+    data:unindent()
+    data:writeln("end")
+end
+
+function Block:save_case(data)
+    self.children[1]:save(data)
+    data:writeln(" then")
+
+    data:indent()
+
+    for i = 2, #self.children do
+        self.children[i]:save(data)
+    end
+
+    data:unindent()
+end
+
+function Block:save_if_cases(data)
+    data:write("if ")
+
+    for i, child in ipairs(self.children) do
+        if i > 1 then
+            data:write("elseif ")
+        end
+
+        child:save(data)
+    end
+end
+
+function Block:save_else_case(data)
+    data:indent()
+
+    for _, child in ipairs(self.children) do
+        child:save(data)
+    end
+
+    data:unindent()
 end
 
 function Block:save_if(data)
-    error("saving if not reimplemented yet")
---     data:write("if ")
---     self.child_groups[1][1]:save(data)
---     data:writeln(" then")
---     self.child_groups[1][2]:save(data)
---
---     if self.child_groups[1][3].kind ~= Block.PIN then
---         data:writeln("else")
---         self.child_groups[1][3]:save(data)
---     end
---
---     data:writeln("end")
+    self.children[1]:save(data)
+    data:writeln("else")
+    self.children[2]:save(data)
+    data:writeln("end")
 end
 
 function Block:save_assignment(data)
@@ -487,8 +523,14 @@ end
 local BLOCK_SAVE_FUNCTIONS = {
     [Block.PIN] = Block.save_pin,
     [Block.DO] = Block.save_do,
+    [Block.STATEMENT_LIST] = Block.save_statement_list,
+    [Block.FUNCTION_HEADER] = Block.save_function_header,
     [Block.FUNCTION] = Block.save_function,
+    [Block.LAMBDA_FUNCTION_HEADER] = Block.save_lambda_function_header,
     [Block.LAMBDA_FUNCTION] = Block.save_lambda_function,
+    [Block.CASE] = Block.save_case,
+    [Block.IF_CASES] = Block.save_if_cases,
+    [Block.ELSE_CASE] = Block.save_else_case,
     [Block.IF] = Block.save_if,
     [Block.ASSIGNMENT] = Block.save_assignment,
     [Block.ADD] = Block.save_add,

@@ -28,6 +28,29 @@ function Parser:parse_do(parent)
     return do_block
 end
 
+function Parser:parse_case(parent)
+    local case = Block:new(Block.CASE, parent)
+    local condition = self:expression(case)
+    case.children[1] = condition
+
+    if self.lexer:next() ~= "then" then
+        error("expected \"then\" after if condition")
+    end
+
+    local statement = self:statement(condition)
+    case.children[1] = statement
+
+    return case
+end
+
+function Parse:parse_if_cases()
+    if self.lexer:next() ~= "if" then
+        error("expected \"if\" before if cases")
+    end
+
+
+end
+
 function Parser:parse_if(parent)
     error("parse if not reimplemented yet")
     return nil
