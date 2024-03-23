@@ -21,7 +21,7 @@ function Parser:parse_do(parent)
     local child_i = 1
     while self.lexer:peek() ~= "end" do
         local statement = self:statement(do_block)
-        do_block.child_groups[1][child_i] = statement
+        do_block.children[child_i] = statement
         child_i = child_i + 1
     end
 
@@ -29,69 +29,73 @@ function Parser:parse_do(parent)
 end
 
 function Parser:parse_if(parent)
-    local if_block = Block:new(Block.IF, parent)
-    local condition = self:expression(if_block)
-    if_block.child_groups[1][1] = condition
-
-    if self.lexer:next() ~= "then" then
-        error("expected \"then\" after if condition")
-    end
-
-    local statement = self:statement(if_block)
-    if_block.child_groups[1][2] = statement
-
-    local end_or_else = self.lexer:next()
-    if end_or_else == "end" then
-        return if_block
-    elseif end_or_else ~= "else" then
-        error("expected \"else\" after if statement")
-    end
-
-    local else_statement = self:statement(if_block)
-    if_block.child_groups[1][3] = else_statement
-
-    return if_block
+    error("parse if not reimplemented yet")
+    return nil
+--     local if_block = Block:new(Block.IF, parent)
+--     local condition = self:expression(if_block)
+--     if_block.children[1] = condition
+--
+--     if self.lexer:next() ~= "then" then
+--         error("expected \"then\" after if condition")
+--     end
+--
+--     local statement = self:statement(if_block)
+--     if_block.children[2] = statement
+--
+--     local end_or_else = self.lexer:next()
+--     if end_or_else == "end" then
+--         return if_block
+--     elseif end_or_else ~= "else" then
+--         error("expected \"else\" after if statement")
+--     end
+--
+--     local else_statement = self:statement(if_block)
+--     if_block.children[3] = else_statement
+--
+--     return if_block
 end
 
 function Parser:parse_function(parent, is_lambda)
-    local function_block = Block:new(Block.FUNCTION, parent)
-    local child_i = 1
-
-    if not is_lambda then
-        function_block.child_groups[1][child_i] = self:identifier(function_block)
-        child_i = child_i + 1
-    end
-
-    if self.lexer:next() ~= "(" then
-        error("expected opening ( in function")
-    end
-
-    while self.lexer:peek() ~= ")" do
-        local identifier = self:identifier(function_block)
-        function_block.child_groups[1][child_i] = identifier
-        child_i = child_i + 1
-
-        if self.lexer:peek() ~= "," then
-            break
-        end
-
-        self.lexer:next()
-    end
-
-    if self.lexer:next() ~= ")" then
-        error("expected closing ) in function")
-    end
-
-    child_i = 1
-    while self.lexer:peek() ~= "end" do
-        local statement = self:statement(function_block)
-        function_block.child_groups[2][child_i] = statement
-        child_i = child_i + 1
-    end
-
-    self.lexer:next()
-
-    return function_block
+    error("parse function not reimplemented yet")
+    return nil
+--     local function_block = Block:new(Block.FUNCTION, parent)
+--     local child_i = 1
+--
+--     if not is_lambda then
+--         function_block.children[child_i] = self:identifier(function_block)
+--         child_i = child_i + 1
+--     end
+--
+--     if self.lexer:next() ~= "(" then
+--         error("expected opening ( in function")
+--     end
+--
+--     while self.lexer:peek() ~= ")" do
+--         local identifier = self:identifier(function_block)
+--         function_block.children[child_i] = identifier
+--         child_i = child_i + 1
+--
+--         if self.lexer:peek() ~= "," then
+--             break
+--         end
+--
+--         self.lexer:next()
+--     end
+--
+--     if self.lexer:next() ~= ")" then
+--         error("expected closing ) in function")
+--     end
+--
+--     child_i = 1
+--     while self.lexer:peek() ~= "end" do
+--         local statement = self:statement(function_block)
+--         function_block.children[child_i] = statement
+--         child_i = child_i + 1
+--     end
+--
+--     self.lexer:next()
+--
+--     return function_block
 end
 
 function Parser:parse_addition(parent)
@@ -103,7 +107,7 @@ function Parser:parse_addition(parent)
 
     local add = Block:new(Block.ADD, parent)
     left.parent = add
-    add.child_groups[1][1] = left
+    add.children[1] = left
 
     local child_i = 2
     while self.lexer:peek() == "+" do
@@ -111,7 +115,7 @@ function Parser:parse_addition(parent)
 
         local expression = self:parse_unary_suffix(add)
 
-        add.child_groups[1][child_i] = expression
+        add.children[child_i] = expression
         child_i = child_i + 1
     end
 
@@ -128,12 +132,12 @@ function Parser:parse_unary_suffix(parent)
 
         local call = Block:new(Block.CALL, parent)
         left.parent = call
-        call.child_groups[1][1] = left
+        call.children[1] = left
 
         local child_i = 2
         while self.lexer:peek() ~= ")" do
             local expression = self:expression(call)
-            call.child_groups[1][child_i] = expression
+            call.children[child_i] = expression
             child_i = child_i + 1
 
             if self.lexer:peek() ~= "," then
@@ -194,8 +198,8 @@ function Parser:statement(parent)
     local assignment = Block:new(Block.ASSIGNMENT, parent)
     expression.parent = assignment
     local right_expression = self:expression(assignment)
-    assignment.child_groups[1][1] = expression
-    assignment.child_groups[1][2] = right_expression
+    assignment.children[1] = expression
+    assignment.children[2] = right_expression
 
     return assignment
 end

@@ -4,11 +4,11 @@ PinKind = {
     IDENTIFIER = 3,
 }
 
-local function new_block_group(group)
-    group.TEXT_WIDTH = lyte.get_text_width(group.TEXT)
-    group.TEXT_HEIGHT = lyte.get_text_height(group.TEXT)
+local function new_block(block)
+    block.TEXT_WIDTH = lyte.get_text_width(block.TEXT)
+    block.TEXT_HEIGHT = lyte.get_text_height(block.TEXT)
 
-    return group
+    return block
 end
 
 lyte.set_font(Graphics.code_font)
@@ -18,15 +18,11 @@ Block = {
     LINE_WIDTH = 3,
 }
 
-Block.PIN = {
+Block.PIN = new_block({
     PIN_KIND = nil,
-    GROUPS = {
-        new_block_group({
-            TEXT = ".",
-            DEFAULT_CHILDREN = {},
-        }),
-    },
-}
+    TEXT = ".",
+    DEFAULT_CHILDREN = {},
+})
 
 local function new_default_child(block_kind)
     return {
@@ -42,151 +38,146 @@ local function new_default_child_pin(pin_kind)
     }
 end
 
-Block.DO = {
+Block.DO = new_block({
     PIN_KIND = PinKind.STATEMENT,
-    GROUPS = {
-        new_block_group({
-            TEXT = "do",
-            IS_VERTICAL = true,
-            IS_GROWABLE = true,
-            DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.STATEMENT),
-            },
-        }),
+    SEARCH_TEXT = "do",
+    TEXT = "do",
+    IS_VERTICAL = true,
+    IS_GROWABLE = true,
+    DEFAULT_CHILDREN = {
+        new_default_child_pin(PinKind.STATEMENT),
     },
-}
+})
 
-Block.FUNCTION = {
+Block.STATEMENT_LIST = new_block({
+    PIN_KIND = nil,
+    TEXT = "",
+    IS_VERTICAL = true,
+    IS_GROWABLE = true,
+    DEFAULT_CHILDREN = {
+        new_default_child_pin(PinKind.STATEMENT),
+    },
+})
+
+Block.FUNCTION_HEADER = new_block({
+    PIN_KIND = nil,
+    TEXT = "fn",
+    IS_GROWABLE = true,
+    DEFAULT_CHILDREN = {
+        new_default_child_pin(PinKind.IDENTIFIER),
+        new_default_child_pin(PinKind.IDENTIFIER),
+    },
+})
+
+Block.FUNCTION = new_block({
     PIN_KIND = PinKind.STATEMENT,
-    GROUPS = {
-        new_block_group({
-            TEXT = "fn",
-            IS_GROWABLE = true,
-            DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.IDENTIFIER),
-                new_default_child_pin(PinKind.IDENTIFIER),
-            },
-        }),
-        new_block_group({
-            TEXT = "",
-            IS_VERTICAL = true,
-            IS_GROWABLE = true,
-            DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.STATEMENT),
-            },
-        }),
+    SEARCH_TEXT = "fn",
+    TEXT = "",
+    IS_VERTICAL = true,
+    DEFAULT_CHILDREN = {
+        new_default_child(Block.FUNCTION_HEADER),
+        new_default_child(Block.STATEMENT_LIST),
     },
-}
+})
 
-Block.LAMBDA_FUNCTION = {
+Block.LAMBDA_FUNCTION_HEADER = new_block({
+    PIN_KIND = nil,
+    TEXT = "fn",
+    IS_GROWABLE = true,
+    DEFAULT_CHILDREN = {
+        new_default_child_pin(PinKind.IDENTIFIER),
+    },
+})
+
+Block.LAMBDA_FUNCTION = new_block({
     PIN_KIND = PinKind.EXPRESSION,
-    GROUPS = {
-        new_block_group({
-            TEXT = "fn",
-            IS_GROWABLE = true,
-            DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.IDENTIFIER),
-            },
-        }),
-        new_block_group({
-            TEXT = "",
-            IS_VERTICAL = true,
-            IS_GROWABLE = true,
-            DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.STATEMENT),
-            },
-        }),
+    SEARCH_TEXT = "fn",
+    TEXT = "",
+    IS_VERTICAL = true,
+    DEFAULT_CHILDREN = {
+        new_default_child(Block.LAMBDA_FUNCTION_HEADER),
+        new_default_child(Block.STATEMENT_LIST),
     },
-}
+})
 
-Block.CASE = {
+Block.CASE = new_block({
     PIN_KIND = PinKind.STATEMENT,
-    GROUPS = {
-        new_block_group({
-            TEXT = "case",
-            DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.EXPRESSION),
-                new_default_child_pin(PinKind.STATEMENT),
-            },
-        }),
+    TEXT = "case",
+    DEFAULT_CHILDREN = {
+        new_default_child_pin(PinKind.EXPRESSION),
+        new_default_child_pin(PinKind.STATEMENT),
     },
-}
+})
 
-Block.IF = {
+Block.IF_CASES = new_block({
+    PIN_KIND = nil,
+    TEXT = "if",
+    IS_VERTICAL = true,
+    IS_GROWABLE = true,
+    DEFAULT_CHILDREN = {
+        new_default_child(Block.CASE),
+    },
+})
+
+Block.ELSE_CASE = new_block({
+    PIN_KIND = nil,
+    TEXT = "else",
+    IS_VERTICAL = true,
+    DEFAULT_CHILDREN = {
+        new_default_child_pin(PinKind.STATEMENT),
+    },
+})
+
+Block.IF = new_block({
     PIN_KIND = PinKind.STATEMENT,
-    GROUPS = {
-        new_block_group({
-            TEXT = "if",
-            IS_VERTICAL = true,
-            IS_GROWABLE = true,
-            DEFAULT_CHILDREN = {
-                new_default_child(Block.CASE),
-            },
-        }),
-        new_block_group({
-            TEXT = "",
-            IS_VERTICAL = true,
-            IS_GROWABLE = false,
-            DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.STATEMENT),
-            },
-        }),
+    SEARCH_TEXT = "if",
+    TEXT = "",
+    IS_VERTICAL = true,
+    DEFAULT_CHILDREN = {
+        new_default_child(Block.IF_CASES),
+        new_default_child(Block.ELSE_CASE),
     },
-}
+})
 
-Block.ASSIGNMENT = {
+Block.ASSIGNMENT = new_block({
     PIN_KIND = PinKind.STATEMENT,
-    GROUPS = {
-        new_block_group({
-            TEXT = "=",
-            IS_TEXT_INFIX = true,
-            DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.EXPRESSION),
-                new_default_child_pin(PinKind.EXPRESSION),
-            },
-        }),
+    SEARCH_TEXT = "=",
+    TEXT = "=",
+    IS_TEXT_INFIX = true,
+    DEFAULT_CHILDREN = {
+        new_default_child_pin(PinKind.EXPRESSION),
+        new_default_child_pin(PinKind.EXPRESSION),
     },
-}
+})
 
-Block.ADD = {
+Block.ADD = new_block({
     PIN_KIND = PinKind.EXPRESSION,
-    GROUPS = {
-        new_block_group({
-            TEXT = "+",
-            IS_TEXT_INFIX = true,
-            IS_GROWABLE = true,
-            DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.EXPRESSION),
-                new_default_child_pin(PinKind.EXPRESSION),
-                new_default_child_pin(PinKind.EXPRESSION),
-            },
-        }),
-    }
-}
+    TEXT = "+",
+    IS_TEXT_INFIX = true,
+    IS_GROWABLE = true,
+    DEFAULT_CHILDREN = {
+        new_default_child_pin(PinKind.EXPRESSION),
+        new_default_child_pin(PinKind.EXPRESSION),
+        new_default_child_pin(PinKind.EXPRESSION),
+    },
+})
 
-Block.CALL = {
+Block.CALL = new_block({
     PIN_KIND = PinKind.EXPRESSION,
-    GROUPS = {
-        new_block_group({
-            TEXT = "call",
-            IS_GROWABLE = true,
-            DEFAULT_CHILDREN = {
-                new_default_child_pin(PinKind.EXPRESSION),
-                new_default_child_pin(PinKind.EXPRESSION),
-            },
-        }),
-    }
-}
+    SEARCH_TEXT = "call",
+    TEXT = "call",
+    IS_GROWABLE = true,
+    DEFAULT_CHILDREN = {
+        new_default_child_pin(PinKind.EXPRESSION),
+        new_default_child_pin(PinKind.EXPRESSION),
+    },
+})
 
-Block.IDENTIFIER = {
+Block.IDENTIFIER = new_block({
     PIN_KIND = PinKind.IDENTIFIER,
-    GROUPS = {
-        new_block_group({
-            TEXT = "",
-            DEFAULT_CHILDREN = {},
-        }),
-    }
-}
+    TEXT = "",
+    DEFAULT_CHILDREN = {},
+})
 
 PIN_BLOCKS = {
     [PinKind.EXPRESSION] = {
@@ -214,22 +205,18 @@ function Block:new(kind, parent)
         pin_kind = kind.PIN_KIND,
         kind = kind,
         parent = parent,
-        child_groups = {},
+        children = {},
         x = 0,
         y = 0,
         width = 0,
         height = 0,
     }
 
-    for group_i, group in ipairs(kind.GROUPS) do
-        block.child_groups[group_i] = {}
+    for i, default_child in ipairs(kind.DEFAULT_CHILDREN) do
+        local block_kind = default_child.block_kind
 
-        for i, default_child in ipairs(group.DEFAULT_CHILDREN) do
-            local block_kind = default_child.block_kind
-
-            block.child_groups[group_i][i] = Block:new(block_kind, block)
-            block.child_groups[group_i][i].pin_kind = default_child.pin_kind
-        end
+        block.children[i] = Block:new(block_kind, block)
+        block.children[i].pin_kind = default_child.pin_kind
     end
 
     setmetatable(block, self)
@@ -244,10 +231,6 @@ function Block:update_text_size(camera)
     self.text_height = camera:get_text_height(self.text)
 end
 
-function Block:has_child()
-    return self.child_groups[1] and self.child_groups[1][1]
-end
-
 function Block:update_tree(x, y)
     self.x = x
     self.y = y
@@ -257,11 +240,11 @@ function Block:update_tree(x, y)
         text_width = self.text_width
         text_height = self.text_height
     else
-        text_width = self.kind.GROUPS[1].TEXT_WIDTH
-        text_height = self.kind.GROUPS[1].TEXT_HEIGHT
+        text_width = self.kind.TEXT_WIDTH
+        text_height = self.kind.TEXT_HEIGHT
     end
 
-    local has_child = self:has_child()
+    local has_child = #self.children > 0
 
     x = x + Block.PADDING
 
@@ -273,46 +256,39 @@ function Block:update_tree(x, y)
         y = y + text_height
     end
 
+    if not self.kind.IS_TEXT_INFIX then
+        x = x + text_width + Block.PADDING
+    end
+
     local start_x = x
     local max_width = 0
 
-    for group_i, child_group in ipairs(self.child_groups) do
-        local kind_group = self.kind.GROUPS[group_i]
-
-        if group_i > 1 then
-            y = y + Block.LINE_WIDTH + Block.PADDING
-        elseif not kind_group.IS_TEXT_INFIX then
-            x = x + text_width + Block.PADDING
-            start_x = x
-        end
-
-        if kind_group.IS_VERTICAL then
-            for _, child in ipairs(child_group) do
-                child:update_tree(x, y)
-                x = x + child.width + Block.PADDING
-                y = y + child.height + Block.PADDING
-
-                max_width = math.max(max_width, x - self.x)
-                x = start_x
-            end
-        else
-            local max_height = 0
-
-            for i, child in ipairs(child_group) do
-                child:update_tree(x, y)
-                x = x + child.width + Block.PADDING
-
-                if i < #child_group and kind_group.IS_TEXT_INFIX then
-                    x = x + text_width + Block.PADDING
-                end
-
-                max_height = math.max(max_height, child.height + Block.PADDING)
-            end
+    if self.kind.IS_VERTICAL then
+        for _, child in ipairs(self.children) do
+            child:update_tree(x, y)
+            x = x + child.width + Block.PADDING
+            y = y + child.height + Block.PADDING
 
             max_width = math.max(max_width, x - self.x)
             x = start_x
-            y = y + max_height
         end
+    else
+        local max_height = 0
+
+        for i, child in ipairs(self.children) do
+            child:update_tree(x, y)
+            x = x + child.width + Block.PADDING
+
+            if i < #self.children and self.kind.IS_TEXT_INFIX then
+                x = x + text_width + Block.PADDING
+            end
+
+            max_height = math.max(max_height, child.height + Block.PADDING)
+        end
+
+        max_width = math.max(max_width, x - self.x)
+        x = start_x
+        y = y + max_height
     end
 
     self.width = max_width
@@ -345,40 +321,29 @@ function Block:draw(cursor_block, camera, depth)
 
     Graphics.set_color(Theme.TEXT_COLOR)
 
-    -- TODO: Fix this to work for multiple groups.
     local text
     if self.kind == Block.IDENTIFIER then
         text = self.text
     else
-        text = self.kind.GROUPS[1].TEXT
+        text = self.kind.TEXT
     end
 
     local text_y = self.y - Block.PADDING / 2
-    local has_child = self:has_child()
+    local has_child = #self.children > 0
 
     if not has_child then
         text_y = text_y - Block.PADDING
     end
 
-    for group_i, child_group in ipairs(self.child_groups) do
-        local kind_group = self.kind.GROUPS[group_i]
+    if not self.kind.IS_TEXT_INFIX then
+        Graphics.draw_text(text, self.x, text_y, camera)
+    end
 
-        if group_i == 1 and not kind_group.IS_TEXT_INFIX then
-            Graphics.draw_text(text, self.x, text_y, camera)
-        end
+    for i, child in ipairs(self.children) do
+        child:draw(cursor_block, camera, depth + 1)
 
-        for i, child in ipairs(child_group) do
-            child:draw(cursor_block, camera, depth + 1)
-
-            if i < #child_group and kind_group.IS_TEXT_INFIX then
-                Graphics.draw_text(text, child.x + child.width, text_y, camera)
-            end
-        end
-
-        if group_i < #self.child_groups and #self.child_groups[group_i + 1] > 0 then
-            Graphics.set_color(Block.get_depth_color(depth - 1))
-            lyte.draw_rect(self.x, self.child_groups[group_i + 1][1].y - Block.PADDING * 2 - Block.LINE_WIDTH,
-                self.width - Block.PADDING * 2, Block.LINE_WIDTH)
+        if i < #self.children and self.kind.IS_TEXT_INFIX then
+            Graphics.draw_text(text, child.x + child.width, text_y, camera)
         end
     end
 end
@@ -390,21 +355,19 @@ function Block:save_do(data)
     data:writeln("do")
     data:indent()
 
-    for _, child_group in ipairs(self.child_groups) do
-        for _, child in ipairs(child_group) do
-            child:save(data)
-        end
+    for _, child in ipairs(self.children) do
+        child:save(data)
     end
 
     data:unindent()
     data:writeln("end")
 end
 
-function Block:save_block_list(data, group_i, first_i, seperator)
-    local last_i = #self.child_groups[group_i]
+function Block:save_block_list(data, first_i, seperator)
+    local last_i = #self.children
 
-    for i = first_i, #self.child_groups[group_i] do
-        local child = self.child_groups[group_i][i]
+    for i = first_i, #self.children do
+        local child = self.children[i]
 
         child:save(data)
 
@@ -415,26 +378,27 @@ function Block:save_block_list(data, group_i, first_i, seperator)
 end
 
 function Block:save_function(data, is_lambda)
-    data:write("function ")
-
-    if not is_lambda then
-        self.child_groups[1][1]:save(data)
-    end
-
-    data:write("(")
-
-    local first_i = is_lambda and 1 or 2
-    self:save_block_list(data, 1, first_i, ", ")
-
-    data:writeln(")")
-    data:indent()
-
-    for _, child in ipairs(self.child_groups[2]) do
-        child:save(data)
-    end
-
-    data:unindent()
-    data:writeln("end")
+    error("saving function not reimplemented yet")
+--     data:write("function ")
+--
+--     if not is_lambda then
+--         self.child_groups[1][1]:save(data)
+--     end
+--
+--     data:write("(")
+--
+--     local first_i = is_lambda and 1 or 2
+--     self:save_block_list(data, first_i, ", ")
+--
+--     data:writeln(")")
+--     data:indent()
+--
+--     for _, child in ipairs(self.child_groups[2]) do
+--         child:save(data)
+--     end
+--
+--     data:unindent()
+--     data:writeln("end")
 end
 
 function Block:save_lambda_function(data)
@@ -442,36 +406,37 @@ function Block:save_lambda_function(data)
 end
 
 function Block:save_if(data)
-    data:write("if ")
-    self.child_groups[1][1]:save(data)
-    data:writeln(" then")
-    self.child_groups[1][2]:save(data)
-
-    if self.child_groups[1][3].kind ~= Block.PIN then
-        data:writeln("else")
-        self.child_groups[1][3]:save(data)
-    end
-
-    data:writeln("end")
+    error("saving if not reimplemented yet")
+--     data:write("if ")
+--     self.child_groups[1][1]:save(data)
+--     data:writeln(" then")
+--     self.child_groups[1][2]:save(data)
+--
+--     if self.child_groups[1][3].kind ~= Block.PIN then
+--         data:writeln("else")
+--         self.child_groups[1][3]:save(data)
+--     end
+--
+--     data:writeln("end")
 end
 
 function Block:save_assignment(data)
-    self.child_groups[1][1]:save(data)
+    self.children[1]:save(data)
     data:write(" = ")
-    self.child_groups[1][2]:save(data)
+    self.children[2]:save(data)
     data:newline()
 end
 
 function Block:save_add(data)
-    self:save_block_list(data, 1, 1, " + ")
+    self:save_block_list(data, 1, " + ")
 end
 
 function Block:save_call(data)
-    self.child_groups[1][1]:save(data)
+    self.children[1]:save(data)
 
     data:write("(")
 
-    self:save_block_list(data, 1, 2, ", ")
+    self:save_block_list(data, 2, ", ")
 
     data:writeln(")")
 end

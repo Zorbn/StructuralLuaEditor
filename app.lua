@@ -8,13 +8,8 @@ require("theme")
 --[[
 
 TODO:
-- Make text insertion only allow valid characters,
-- Make text insertion use space instead of underscores, which will be converted to underscores
-  behind the scenes for final Lua code.
-- Have two types of pins, pins that must be filled (highlighted red) "!" and pins that are optional "?".
-- Add importing Lua code.
+- Make text insertion only allow valid characters.
 - Support multiple files.
-- When moving between groups, move to the closest node in the group, the node the cursor was in in the previous group.
 
 - if should look like
 (if
@@ -110,8 +105,8 @@ function Camera:update(dt, cursor_block, root_block, window_width, window_height
         block_text_width = cursor_block.text_width
         block_text_height = cursor_block.text_height
     else
-        block_text_width = cursor_block.kind.GROUPS[1].TEXT_WIDTH
-        block_text_height = cursor_block.kind.GROUPS[1].TEXT_HEIGHT
+        block_text_width = cursor_block.kind.TEXT_WIDTH
+        block_text_height = cursor_block.kind.TEXT_HEIGHT
     end
 
     local target_x
@@ -170,26 +165,21 @@ end
 root_block:update_tree(0, 0)
 
 local cursor_block = root_block
-local cursor_group_i = 0
 local cursor_i = 0
 
 -- Determine where the cursor block is stored in its parent's list of children.
 local function update_cursor_child_indices()
-    cursor_group_i = 1
     cursor_i = 1
 
     if not cursor_block.parent then
         return
     end
 
-    for group_i, children in ipairs(cursor_block.parent.child_groups) do
-        for i, child in ipairs(children) do
-            if child == cursor_block then
-                cursor_group_i = group_i
-                cursor_i = i
+    for i, child in ipairs(cursor_block.children) do
+        if child == cursor_block then
+            cursor_i = i
 
-                return
-            end
+            return
         end
     end
 end
@@ -205,8 +195,8 @@ local function try_cursor_ascend()
 end
 
 local function try_cursor_descend()
-    if cursor_block.child_groups[1][1] then
-        cursor_block = cursor_block.child_groups[1][1]
+    if cursor_block.children[1] then
+        cursor_block = cursor_block.children[1]
         update_cursor_child_indices()
         return true
     end
@@ -217,13 +207,7 @@ end
 local function try_cursor_previous()
     if cursor_block.parent then
         if cursor_i > 1 then
-            cursor_block = cursor_block.parent.child_groups[cursor_group_i][cursor_i - 1]
-
-            update_cursor_child_indices()
-            return true
-        elseif cursor_group_i > 1 then
-            local group = cursor_block.parent.child_groups[cursor_group_i - 1]
-            cursor_block = group[#group]
+            cursor_block = cursor_block.parent.children[cursor_i - 1]
 
             update_cursor_child_indices()
             return true
@@ -235,15 +219,8 @@ end
 
 local function try_cursor_next()
     if cursor_block.parent then
-        local group = cursor_block.parent.child_groups[cursor_group_i]
-
-        if cursor_i < #group then
-            cursor_block = group[cursor_i + 1]
-
-            update_cursor_child_indices()
-            return true
-        elseif cursor_group_i < #cursor_block.parent.child_groups then
-            cursor_block = cursor_block.parent.child_groups[cursor_group_i + 1][1]
+        if cursor_i < #cursor_block.parent.children then
+            cursor_block = cursor_block.parent.children[cursor_i + 1]
 
             update_cursor_child_indices()
             return true
@@ -254,7 +231,7 @@ local function try_cursor_next()
 end
 
 local function is_cursor_vertical()
-    return not cursor_block.parent or cursor_block.parent.kind.GROUPS[cursor_group_i].IS_VERTICAL
+    return not cursor_block.parent or cursor_block.parent.kind.IS_VERTICAL
 end
 
 local function try_move_cursor_up()
@@ -317,7 +294,7 @@ local function get_insert_target_i(direction)
 end
 
 local function get_insert_default_child(target_i)
-    local default_children = cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN
+    local default_children = cursor_block.parent.kind.DEFAULT_CHILDREN
     local default_child_i = math.min(target_i, #default_children)
 
     return default_children[default_child_i]
@@ -341,7 +318,7 @@ local function try_insert(search_text, direction)
 
     if not chosen_block_kind then
         for _, block_kind in ipairs(block_kind_choices) do
-            if block_kind.GROUPS[1].TEXT == search_text then
+            if block_kind.SEARCH_TEXT == search_text then
                 chosen_block_kind = block_kind
             end
         end
@@ -355,19 +332,18 @@ local function try_insert(search_text, direction)
         chosen_block_kind = Block.IDENTIFIER
     end
 
-    local cursor_group = cursor_block.parent.child_groups[cursor_group_i]
     local do_replace = not direction
 
     local block = Block:new(chosen_block_kind, cursor_block.parent)
 
     if do_replace then
-        cursor_group[target_i] = block
+        cursor_block.parent.children[target_i] = block
     else
-        table.insert(cursor_group, target_i, block)
+        table.insert(cursor_block.parent.children, target_i, block)
     end
 
     cursor_i = target_i
-    cursor_block = cursor_group[cursor_i]
+    cursor_block = cursor_block.parent.children[cursor_i]
 
     if chosen_block_kind == Block.IDENTIFIER then
         cursor_block.text = search_text
@@ -384,31 +360,30 @@ local function try_delete()
         return
     end
 
-    local default_children = cursor_block.parent.kind.GROUPS[cursor_group_i].DEFAULT_CHILDREN
+    local default_children = cursor_block.parent.kind.DEFAULT_CHILDREN
 
-    if cursor_block.parent.kind.GROUPS[cursor_group_i].IS_GROWABLE and cursor_i > 1 then
+    if cursor_block.parent.kind.IS_GROWABLE and cursor_i > 1 then
         -- This is a pin wasn't default, so we can fully remove it.
 
-        local group = cursor_block.parent.child_groups[cursor_group_i]
         local delete_i = cursor_i
 
-        if cursor_i + 1 <= #group then
-            cursor_block = group[cursor_i + 1]
+        if cursor_i + 1 <= #cursor_block.parent.children then
+            cursor_block = cursor_block.parent.children[cursor_i + 1]
         elseif cursor_i > 1 then
             cursor_i = cursor_i - 1
-            cursor_block = group[cursor_i]
+            cursor_block = cursor_block.parent.children[cursor_i]
         else
             cursor_block = cursor_block.parent
         end
 
-        table.remove(group, delete_i)
+        table.remove(cursor_block.parent.children, delete_i)
     else
         local default_child_i = math.min(cursor_i, #default_children)
         local default_child = default_children[default_child_i]
 
         local child = Block:new(default_child.block_kind, cursor_block.parent)
         child.pin_kind = default_child.pin_kind
-        cursor_block.parent.child_groups[cursor_group_i][cursor_i] = child
+        cursor_block.parent.children[cursor_i] = child
         cursor_block = child
     end
 
