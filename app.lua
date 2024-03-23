@@ -134,7 +134,7 @@ function Camera:update(dt, cursor_block, root_block, window_width, window_height
 end
 
 function Camera:set_zoom(zoom)
-    self.zoom = math.max(zoom, 0.1)
+    self.zoom = math.max(zoom, Camera.ZOOM_STEP)
     Graphics.set_code_font(Graphics.DEFAULT_CODE_FONT_SIZE * self.zoom)
 end
 

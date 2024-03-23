@@ -9,9 +9,12 @@ Graphics = {
 Graphics.default_font = lyte.load_font(Graphics.FONT_NAME, Graphics.DEFAULT_FONT_SIZE)
 
 function Graphics.set_code_font(size)
+    if Graphics.code_font then
+        lyte.cleanup_font(Graphics.code_font)
+    end
+
     Graphics.code_font = lyte.load_font(Graphics.FONT_NAME, size)
     lyte.set_font(Graphics.code_font)
-    collectgarbage("collect")
 end
 
 Graphics.set_code_font(Graphics.DEFAULT_CODE_FONT_SIZE)

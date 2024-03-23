@@ -347,10 +347,6 @@ function Block.get_depth_color(depth)
 end
 
 function Block:draw(cursor_block, camera, window_height, depth)
-    if self.y * camera.zoom > camera.y + window_height or (self.y + self.height) * camera.zoom < camera.y then
-        return
-    end
-
     if self == cursor_block then
         Graphics.set_color(Theme.CURSOR_COLOR)
 
@@ -386,7 +382,49 @@ function Block:draw(cursor_block, camera, window_height, depth)
         Graphics.draw_text(text, self.x, text_y, camera)
     end
 
-    for i, child in ipairs(self.children) do
+    -- if self.y * camera.zoom > camera.y + window_height or (self.y + self.height) * camera.zoom < camera.y then
+    --     return
+    -- end
+
+    local first_visible_i = nil
+
+    -- TODO: This will only be useful if self.IS_VERTICAL is true, make it work for horizontal layouts as well.
+    do
+        local min_i = 1
+        local max_i = #self.children
+
+        if max_i == 0 then
+            return
+        end
+
+        while min_i ~= max_i do
+            local i = math.floor((min_i + max_i) / 2)
+
+            local child = self.children[i]
+
+            if (child.y + child.height) * camera.zoom < camera.y then
+                -- This child is after the camera's vision.
+                min_i = i + 1
+            else
+                -- This child is before the  camera's vision.
+                max_i = i
+            end
+        end
+
+        if (self.children[min_i].y + self.children[min_i].height) * camera.zoom < camera.y then
+            return
+        end
+
+        first_visible_i = min_i
+    end
+
+    for i = first_visible_i, #self.children do
+        local child = self.children[i]
+
+        if child.y * camera.zoom > camera.y + window_height then
+            break
+        end
+
         child:draw(cursor_block, camera, window_height, depth + 1)
 
         if i < #self.children and self.kind.IS_TEXT_INFIX then
