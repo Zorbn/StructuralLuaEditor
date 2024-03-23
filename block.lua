@@ -202,9 +202,6 @@ PIN_BLOCKS = {
 
 function Block:new(kind, parent)
     local block = {
-        text = "",
-        text_width = 0,
-        text_height = 0,
         pin_kind = kind.PIN_KIND,
         kind = kind,
         parent = parent,
@@ -228,12 +225,34 @@ function Block:new(kind, parent)
     return block
 end
 
+function Block:get_text()
+    if self.text then
+        return self.text
+    end
+
+    return self.kind.TEXT
+end
+
+function Block:get_text_width()
+    if self.text_width then
+        return self.text_width
+    end
+
+    return self.kind.TEXT_WIDTH
+end
+
+function Block:get_text_height()
+    if self.text_height then
+        return self.text_height
+    end
+
+    return self.kind.TEXT_HEIGHT
+end
+
 -- Deep copy.
+-- TODO: Update to not always have text* fields.
 function Block:copy()
     local copy_block = {
-        text = self.text,
-        text_width = self.text_width,
-        text_height = self.text_height,
         pin_kind = self.pin_kind,
         kind = self.kind,
         parent = self.parent,
@@ -243,6 +262,18 @@ function Block:copy()
         width = self.width,
         height = self.height,
     }
+
+    if self.text then
+        copy_block.text = self.text
+    end
+
+    if self.text_width then
+        copy_block.text_width = self.text_width
+    end
+
+    if self.text_height then
+        copy_block.text_height = self.text_height
+    end
 
     setmetatable(copy_block, Block)
     Block.__index = Block
@@ -270,22 +301,13 @@ end
 
 function Block:update_text_size(camera)
     lyte.set_font(Graphics.code_font)
-    self.text_width = camera:get_text_width(self.text)
-    self.text_height = camera:get_text_height(self.text)
+    self.text_width = camera:get_text_width(self:get_text())
+    self.text_height = camera:get_text_height(self:get_text())
 end
 
 function Block:update_tree(x, y)
     self.x = x
     self.y = y
-
-    local text_width, text_height
-    if self.kind == Block.IDENTIFIER then
-        text_width = self.text_width
-        text_height = self.text_height
-    else
-        text_width = self.kind.TEXT_WIDTH
-        text_height = self.kind.TEXT_HEIGHT
-    end
 
     local has_child = #self.children > 0
 
@@ -296,11 +318,11 @@ function Block:update_tree(x, y)
     end
 
     if not has_child then
-        y = y + text_height
+        y = y + self:get_text_height()
     end
 
     if not self.kind.IS_TEXT_INFIX then
-        x = x + text_width + Block.PADDING
+        x = x + self:get_text_width() + Block.PADDING
     end
 
     local start_x = x
@@ -323,7 +345,7 @@ function Block:update_tree(x, y)
             x = x + child.width + Block.PADDING
 
             if i < #self.children and self.kind.IS_TEXT_INFIX then
-                x = x + text_width + Block.PADDING
+                x = x + self:get_text_width() + Block.PADDING
             end
 
             max_height = math.max(max_height, child.height + Block.PADDING)
@@ -364,13 +386,6 @@ function Block:draw(cursor_block, camera, window_height, depth)
 
     Graphics.set_color(Theme.TEXT_COLOR)
 
-    local text
-    if self.kind == Block.IDENTIFIER then
-        text = self.text
-    else
-        text = self.kind.TEXT
-    end
-
     local text_y = self.y - Block.PADDING / 2
     local has_child = #self.children > 0
 
@@ -379,7 +394,7 @@ function Block:draw(cursor_block, camera, window_height, depth)
     end
 
     if not self.kind.IS_TEXT_INFIX then
-        Graphics.draw_text(text, self.x, text_y, camera)
+        Graphics.draw_text(self:get_text(), self.x, text_y, camera)
     end
 
     -- if self.y * camera.zoom > camera.y + window_height or (self.y + self.height) * camera.zoom < camera.y then
@@ -428,7 +443,7 @@ function Block:draw(cursor_block, camera, window_height, depth)
         child:draw(cursor_block, camera, window_height, depth + 1)
 
         if i < #self.children and self.kind.IS_TEXT_INFIX then
-            Graphics.draw_text(text, child.x + child.width, text_y, camera)
+            Graphics.draw_text(self:get_text(), child.x + child.width, text_y, camera)
         end
     end
 end
@@ -568,10 +583,10 @@ function Block:save_call(data)
 end
 
 function Block:save_identifier(data)
-    local text = self.text
+    local text = self:get_text()
 
     if text:sub(1, 1) ~= "\"" then
-        text = self.text:gsub(" ", "_")
+        text = self:get_text():gsub(" ", "_")
     end
 
     data:write(text)

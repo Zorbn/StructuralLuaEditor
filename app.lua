@@ -153,10 +153,17 @@ local root_block
 do
     local data = lyte.load_textfile("save.lua")
     if data then
+        for i = 1, 10 do collectgarbage("collect") end
+        local start = collectgarbage("count")
+        collectgarbage("stop")
         local lexer = Lexer:new(data)
         local parser = Parser:new(lexer, camera)
         root_block = parser:statement(nil)
-        collectgarbage("collect")
+        for i = 1, 10 do collectgarbage("collect") end
+        local finish = collectgarbage("count")
+        collectgarbage("restart")
+
+        print(finish - start)
     else
         root_block = Block:new(Block.DO, nil)
     end
@@ -660,5 +667,6 @@ function lyte.tick(dt, window_width, window_height)
     else
         lyte.set_font(Graphics.default_font)
         lyte.draw_text(camera.zoom * 100 .. "%", 10, 0)
+        lyte.draw_text(collectgarbage("count"), 10, 40)
     end
 end
