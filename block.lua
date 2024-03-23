@@ -228,6 +228,32 @@ function Block:new(kind, parent)
     return block
 end
 
+-- Deep copy.
+function Block:copy()
+    local copy_block = {
+        text = self.text,
+        text_width = self.text_width,
+        text_height = self.text_height,
+        pin_kind = self.pin_kind,
+        kind = self.kind,
+        parent = self.parent,
+        children = {},
+        x = self.x,
+        y = self.y,
+        width = self.width,
+        height = self.height,
+    }
+
+    setmetatable(copy_block, Block)
+    Block.__index = Block
+
+    for i, child in ipairs(self.children) do
+        copy_block.children[i] = child:copy()
+    end
+
+    return copy_block
+end
+
 function Block:can_swap_with(other)
     return self.kind == other.kind or (self.pin_kind ~= nil and self.pin_kind == other.pin_kind)
 end

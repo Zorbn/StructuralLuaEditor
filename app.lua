@@ -165,6 +165,7 @@ end
 root_block:update_tree(0, 0)
 
 local cursor_block = root_block
+local clipboard_block = nil
 local cursor_i = 0
 
 -- Determine where the cursor block is stored in its parent's list of children.
@@ -333,9 +334,13 @@ local function try_insert(search_text, direction)
     local chosen_block_kind = default_child.block_kind ~= Block.PIN and default_child.block_kind or nil
 
     if not chosen_block_kind then
-        for _, block_kind in ipairs(block_kind_choices) do
-            if block_kind.SEARCH_TEXT == search_text then
-                chosen_block_kind = block_kind
+        if #search_text == 0 then
+            chosen_block_kind = Block.PIN
+        else
+            for _, block_kind in ipairs(block_kind_choices) do
+                if block_kind.SEARCH_TEXT == search_text then
+                    chosen_block_kind = block_kind
+                end
             end
         end
     end
@@ -351,6 +356,7 @@ local function try_insert(search_text, direction)
     local do_replace = not direction
 
     local block = Block:new(chosen_block_kind, cursor_block.parent)
+    block.pin_kind = pin_kind
 
     if do_replace then
         cursor_block.parent.children[target_i] = block
@@ -373,7 +379,7 @@ end
 
 local function try_delete()
     if not cursor_block.parent then
-        return
+        return false
     end
 
     local default_children = cursor_block.parent.kind.DEFAULT_CHILDREN
@@ -404,6 +410,8 @@ local function try_delete()
     end
 
     root_block:update_tree(root_block.x, root_block.y)
+
+    return true
 end
 
 local function get_swap_target_i(direction)
@@ -452,6 +460,37 @@ local function try_swap(direction)
 
         root_block:update_tree(root_block.x, root_block.y)
     end
+end
+
+local function try_cut()
+    local cut_block = cursor_block
+
+    if not try_delete() then
+        return
+    end
+
+    clipboard_block = cut_block:copy()
+end
+
+local function try_copy()
+    if not cursor_block.parent then
+        return
+    end
+
+    clipboard_block = cursor_block:copy()
+end
+
+local function try_paste()
+    if not cursor_block.parent or not clipboard_block then
+        return
+    end
+
+    if clipboard_block:can_swap_with(cursor_block) then
+        cursor_block.parent.children[cursor_i] = clipboard_block:copy()
+        cursor_block = cursor_block.parent.children[cursor_i]
+    end
+
+    root_block:update_tree(root_block.x, root_block.y)
 end
 
 local InteractionState = {
@@ -535,6 +574,18 @@ local function update_cursor()
     elseif is_key_pressed_or_repeat("l") then
         start_insert_mode(Direction.RIGHT)
         return
+    end
+
+    if lyte.is_key_pressed("x") then
+        try_cut()
+    end
+
+    if lyte.is_key_pressed("c") then
+        try_copy()
+    end
+
+    if lyte.is_key_pressed("v") then
+        try_paste()
     end
 
     if lyte.is_key_pressed("space") then
