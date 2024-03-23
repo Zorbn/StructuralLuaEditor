@@ -258,6 +258,16 @@ function Block:can_swap_with(other)
     return self.kind == other.kind or (self.pin_kind ~= nil and self.pin_kind == other.pin_kind)
 end
 
+function Block:contains_non_pin()
+    for _, child in ipairs(self.children) do
+        if child.kind ~= Block.PIN then
+            return true
+        end
+    end
+
+    return false
+end
+
 function Block:update_text_size(camera)
     lyte.set_font(Graphics.code_font)
     self.text_width = camera:get_text_width(self.text)
@@ -396,7 +406,7 @@ function Block:save_do(data)
     data:writeln("end")
 end
 
-function Block:save_block_list(data, first_i, seperator)
+function Block:save_block_list(data, first_i, separator)
     local last_i = #self.children
 
     for i = first_i, #self.children do
@@ -405,7 +415,7 @@ function Block:save_block_list(data, first_i, seperator)
         child:save(data)
 
         if i < last_i then
-            data:write(seperator)
+            data:write(separator)
         end
     end
 end
@@ -461,10 +471,10 @@ function Block:save_case(data)
 end
 
 function Block:save_if_cases(data)
-    data:write("if ")
-
     for i, child in ipairs(self.children) do
-        if i > 1 then
+        if i == 1 then
+            data:write("if ")
+        else
             data:write("elseif ")
         end
 
@@ -473,6 +483,8 @@ function Block:save_if_cases(data)
 end
 
 function Block:save_else_case(data)
+    data:writeln("else")
+
     data:indent()
 
     for _, child in ipairs(self.children) do
@@ -484,8 +496,11 @@ end
 
 function Block:save_if(data)
     self.children[1]:save(data)
-    data:writeln("else")
-    self.children[2]:save(data)
+
+    if self.children[2]:contains_non_pin() then
+        self.children[2]:save(data)
+    end
+
     data:writeln("end")
 end
 

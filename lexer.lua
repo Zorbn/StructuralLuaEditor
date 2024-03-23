@@ -3,11 +3,14 @@ Lexer = {}
 function Lexer:new(data)
     local lexer = {
         data = data,
+        current = "",
         position = 1,
     }
 
     setmetatable(lexer, self)
     self.__index = self
+
+    lexer.current = lexer:read()
 
     return lexer
 end
@@ -17,14 +20,17 @@ function Lexer:char()
 end
 
 function Lexer:peek()
-    local position = self.position
-    local token = self:next()
-    self.position = position
+    return self.current
+end
+
+function Lexer:next()
+    local token = self.current
+    self.current = self:read()
 
     return token
 end
 
-function Lexer:next()
+function Lexer:read()
     while self:char():match("%s") do
         self.position = self.position + 1
     end
