@@ -10,18 +10,6 @@ require("theme")
 TODO:
 - Make text insertion only allow valid characters.
 - Support multiple files.
-
-- if should look like
-(if
-    (case condition statement)
-    ...
-    optional else statement)
-
-if condition then
-    statement
-... -- else ifs generated from any additional cases
--- else generated if else statement exists
-
 -- Change scaling method, don't use lyte.scale, do things manually to ensure consistent pixel sizes at all scales, ie: outlines should be the same width on all sides, even at 75%.
 
 ]]--
@@ -149,6 +137,21 @@ end
 local camera = Camera:new()
 
 local root_block
+
+-- do
+--     for i = 1, 10 do collectgarbage("collect") end
+--     local start = collectgarbage("count")
+--     collectgarbage("stop")
+--
+--     for i = 1, 300000 do
+--         Block:new(Block.IDENTIFIER, nil)
+--     end
+--
+--     local finish = collectgarbage("count")
+--     collectgarbage("restart")
+--
+--     print(finish - start)
+-- end
 
 do
     local data = lyte.load_textfile("save.lua")
@@ -363,7 +366,6 @@ local function try_insert(search_text, direction)
     local do_replace = not direction
 
     local block = Block:new(chosen_block_kind, cursor_block.parent)
-    block.pin_kind = pin_kind
 
     if do_replace then
         cursor_block.parent.children[target_i] = block
@@ -411,7 +413,6 @@ local function try_delete()
         local default_child = default_children[default_child_i]
 
         local child = Block:new(default_child.block_kind, cursor_block.parent)
-        child.pin_kind = default_child.pin_kind
         cursor_block.parent.children[cursor_i] = child
         cursor_block = child
     end
@@ -667,6 +668,6 @@ function lyte.tick(dt, window_width, window_height)
     else
         lyte.set_font(Graphics.default_font)
         lyte.draw_text(camera.zoom * 100 .. "%", 10, 0)
-        lyte.draw_text(collectgarbage("count"), 10, 40)
+        -- lyte.draw_text(collectgarbage("count"), 10, 40)
     end
 end

@@ -155,6 +155,7 @@ Block.ASSIGNMENT = new_block({
 
 Block.ADD = new_block({
     PIN_KIND = PinKind.EXPRESSION,
+    SEARCH_TEXT = "+",
     TEXT = "+",
     IS_TEXT_INFIX = true,
     IS_GROWABLE = true,
@@ -202,7 +203,6 @@ PIN_BLOCKS = {
 
 function Block:new(kind, parent)
     local block = {
-        pin_kind = kind.PIN_KIND,
         kind = kind,
         parent = parent,
         x = 0,
@@ -218,7 +218,6 @@ function Block:new(kind, parent)
             local block_kind = default_child.block_kind
 
             block.children[i] = Block:new(block_kind, block)
-            block.children[i].pin_kind = default_child.pin_kind
         end
     end
 
@@ -255,7 +254,6 @@ end
 -- Deep copy.
 function Block:copy()
     local copy_block = {
-        pin_kind = self.pin_kind,
         kind = self.kind,
         parent = self.parent,
         x = self.x,
@@ -291,7 +289,7 @@ function Block:copy()
 end
 
 function Block:can_swap_with(other)
-    return self.kind == other.kind or (self.pin_kind ~= nil and self.pin_kind == other.pin_kind)
+    return self.kind == other.kind or (self.kind.PIN_KIND ~= nil and self.kind.PIN_KIND == other.kind.PIN_KIND)
 end
 
 function Block:contains_non_pin()
