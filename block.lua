@@ -290,8 +290,15 @@ function Block:copy()
     return copy_block
 end
 
-function Block:can_swap_with(other)
-    return self.kind == other.kind or (self.kind.PIN_KIND ~= nil and self.kind.PIN_KIND == other.kind.PIN_KIND)
+function Block.get_default_pin_kind(parent, i)
+    local default_i = math.min(i, #parent.kind.DEFAULT_CHILDREN)
+    local default_pin_kind = parent.kind.DEFAULT_CHILDREN[default_i].pin_kind
+
+    return default_pin_kind
+end
+
+function Block:can_swap_with(other, self_default_pin_kind, other_default_pin_kind)
+    return self.kind == other.kind or (self_default_pin_kind ~= nil and self_default_pin_kind == other_default_pin_kind)
 end
 
 function Block:contains_non_pin()

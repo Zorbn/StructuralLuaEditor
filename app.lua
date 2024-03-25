@@ -153,6 +153,7 @@ root_block:update_tree(0, 0)
 
 local cursor_block = root_block
 local clipboard_block = nil
+local clipboard_block_default_pin_kind = nil
 local cursor_i = 0
 
 -- Determine where the cursor block is stored in its parent's list of children.
@@ -438,7 +439,10 @@ local function try_swap(direction)
 
     local other = cursor_block.parent.children[target_i]
 
-    if cursor_block:can_swap_with(other) then
+    local cursor_block_default_pin_kind = Block.get_default_pin_kind(cursor_block.parent, cursor_i)
+    local other_default_pin_kind = Block.get_default_pin_kind(other.parent, target_i)
+
+    if cursor_block:can_swap_with(other, cursor_block_default_pin_kind, other_default_pin_kind) then
         cursor_block.parent.children[cursor_i] = other
         cursor_block.parent.children[target_i] = cursor_block
         cursor_i = target_i
@@ -448,13 +452,19 @@ local function try_swap(direction)
 end
 
 local function try_cut()
+    if not cursor_block.parent then
+        return
+    end
+
     local cut_block = cursor_block
+    local cut_block_default_pin_kind = Block.get_default_pin_kind(cursor_block.parent, cursor_i)
 
     if not try_delete() then
         return
     end
 
     clipboard_block = cut_block:copy()
+    clipboard_block_default_pin_kind = cut_block_default_pin_kind
 end
 
 local function try_copy()
@@ -463,6 +473,7 @@ local function try_copy()
     end
 
     clipboard_block = cursor_block:copy()
+    clipboard_block_default_pin_kind = Block.get_default_pin_kind(cursor_block.parent, cursor_i)
 end
 
 local function try_paste()
@@ -470,8 +481,10 @@ local function try_paste()
         return
     end
 
-    if clipboard_block:can_swap_with(cursor_block) then
+    local cursor_block_default_pin_kind = Block.get_default_pin_kind(cursor_block.parent, cursor_i)
+    if clipboard_block:can_swap_with(cursor_block, clipboard_block_default_pin_kind, cursor_block_default_pin_kind) then
         cursor_block.parent.children[cursor_i] = clipboard_block:copy()
+        cursor_block.parent.children[cursor_i].parent = cursor_block.parent
         cursor_block = cursor_block.parent.children[cursor_i]
     end
 
