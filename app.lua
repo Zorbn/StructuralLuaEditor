@@ -10,7 +10,7 @@ require("theme")
 TODO:
 - Make text insertion only allow valid characters.
 - Support multiple files.
--- Change scaling method, don't use lyte.scale, do things manually to ensure consistent pixel sizes at all scales, ie: outlines should be the same width on all sides, even at 75%.
+- GPU scaling using lyte.scale means sometimes outlines will have different widths on different sides, like at 75% scale. Maybe we should be doing this manually so we can round consistently.
 
 ]]--
 
@@ -138,35 +138,12 @@ local camera = Camera:new()
 
 local root_block
 
--- do
---     for i = 1, 10 do collectgarbage("collect") end
---     local start = collectgarbage("count")
---     collectgarbage("stop")
---
---     for i = 1, 300000 do
---         Block:new(Block.IDENTIFIER, nil)
---     end
---
---     local finish = collectgarbage("count")
---     collectgarbage("restart")
---
---     print(finish - start)
--- end
-
 do
     local data = lyte.load_textfile("save.lua")
     if data then
-        for i = 1, 10 do collectgarbage("collect") end
-        local start = collectgarbage("count")
-        collectgarbage("stop")
         local lexer = Lexer:new(data)
         local parser = Parser:new(lexer, camera)
         root_block = parser:statement(nil)
-        for i = 1, 10 do collectgarbage("collect") end
-        local finish = collectgarbage("count")
-        collectgarbage("restart")
-
-        print(finish - start)
     else
         root_block = Block:new(Block.DO, nil)
     end

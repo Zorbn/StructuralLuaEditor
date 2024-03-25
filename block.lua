@@ -153,6 +153,8 @@ Block.ASSIGNMENT = new_block({
     },
 })
 
+-- TODO: Maybe if a block is growable & the last default child is the same as the second to last default child,
+-- then the last default child shouldn't be added by default, eg. so that ADD will start with 2 pins instead of 3.
 Block.ADD = new_block({
     PIN_KIND = PinKind.EXPRESSION,
     SEARCH_TEXT = "+",
